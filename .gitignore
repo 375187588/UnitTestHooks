@@ -6,3 +6,6 @@ Debug/ApiHook.obj
 ApiHook.sdf
 *.opensdf
 test/Test_ws2_32_hook/Src/Generated/Test_ws2_32_hookRunner.cpp
+*.tlog
+test/Test_ws2_32_hook/Debug/Test_ws2_32_hookRunner.obj
+*.idb
