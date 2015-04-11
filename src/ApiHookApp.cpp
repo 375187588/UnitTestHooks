@@ -1,8 +1,9 @@
 // ApiHook.cpp : Defines the entry point for the console application.
 //
 
-#include "stdafx.h"
 #include "ApiHook.h"
+#include <tchar.h>
+
 int WINAPI Hook_MessageBoxA(HWND hWnd, PCSTR pText, PCSTR pCaption, UINT type);
 
 typedef int (WINAPI *pfnMessageBoxA)(HWND, PCSTR, PCSTR, UINT);

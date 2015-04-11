@@ -17,13 +17,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="readme.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="Src\Test_ws2_32_hook.h">
       <Filter>Header Files\test</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\api\windows\ws2_32\ws2_32_hook.h">
+    <ClInclude Include="..\..\src\api\windows\ws2_32\ws2_32.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\api\windows\ws2_32\ws2_32_def.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\api\windows\ws2_32\socket_state.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -31,7 +34,7 @@
     <ClCompile Include="Src\Generated\Test_ws2_32_hookRunner.cpp">
       <Filter>Source Files\generated</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\api\windows\ws2_32\ws2_32_hook.cpp">
+    <ClCompile Include="..\..\src\api\windows\ws2_32\ws2_32.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

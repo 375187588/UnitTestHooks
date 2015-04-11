@@ -96,14 +96,13 @@ Generate the test runner...
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <Text Include="readme.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\src\api\windows\ws2_32\ws2_32_hook.cpp" />
+    <ClCompile Include="..\..\src\api\windows\ws2_32\ws2_32.cpp" />
     <ClCompile Include="Src\Generated\Test_ws2_32_hookRunner.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\api\windows\ws2_32\ws2_32_hook.h" />
+    <ClInclude Include="..\..\src\api\windows\ws2_32\socket_state.h" />
+    <ClInclude Include="..\..\src\api\windows\ws2_32\ws2_32.h" />
+    <ClInclude Include="..\..\src\api\windows\ws2_32\ws2_32_def.h" />
     <ClInclude Include="Src\Test_ws2_32_hook.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
