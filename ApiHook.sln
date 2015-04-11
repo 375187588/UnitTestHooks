@@ -5,6 +5,8 @@ VisualStudioVersion = 12.0.30110.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ApiHook", "ApiHook.vcxproj", "{8ED22C53-34BC-49BD-B6CA-92B1BAA6EFBF}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_ws2_32_hook", "test\Test_ws2_32_hook\Test_ws2_32_hook.vcxproj", "{331CFFCC-57FF-4634-ACFD-2C2C36C72043}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -15,6 +17,10 @@ Global
 		{8ED22C53-34BC-49BD-B6CA-92B1BAA6EFBF}.Debug|Win32.Build.0 = Debug|Win32
 		{8ED22C53-34BC-49BD-B6CA-92B1BAA6EFBF}.Release|Win32.ActiveCfg = Release|Win32
 		{8ED22C53-34BC-49BD-B6CA-92B1BAA6EFBF}.Release|Win32.Build.0 = Release|Win32
+		{331CFFCC-57FF-4634-ACFD-2C2C36C72043}.Debug|Win32.ActiveCfg = Debug|Win32
+		{331CFFCC-57FF-4634-ACFD-2C2C36C72043}.Debug|Win32.Build.0 = Debug|Win32
+		{331CFFCC-57FF-4634-ACFD-2C2C36C72043}.Release|Win32.ActiveCfg = Release|Win32
+		{331CFFCC-57FF-4634-ACFD-2C2C36C72043}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

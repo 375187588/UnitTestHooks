@@ -5,3 +5,4 @@ Debug/ApiHook.obj
 *.pdb
 ApiHook.sdf
 *.opensdf
+test/Test_ws2_32_hook/Src/Generated/Test_ws2_32_hookRunner.cpp
