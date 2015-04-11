@@ -9,3 +9,7 @@ test/Test_ws2_32_hook/Src/Generated/Test_ws2_32_hookRunner.cpp
 *.tlog
 test/Test_ws2_32_hook/Debug/Test_ws2_32_hookRunner.obj
 *.idb
+test/Test_ws2_32_hook/Debug/Test_ws2_32_hook.exe
+*.ilk
+test/Test_ws2_32_hook/Debug/ws2_32_hook.obj
+*.user
