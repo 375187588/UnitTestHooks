@@ -1,0 +1,7 @@
+*.suo
+Debug/ApiHook.ilk
+*.log
+Debug/ApiHook.obj
+*.pdb
+ApiHook.sdf
+*.opensdf
