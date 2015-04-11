@@ -1,33 +1,50 @@
-========================================================================
-    CONSOLE APPLICATION : ApiHook Project Overview
-========================================================================
+API Hook
+========
 
-Purpose:  This project is a demonstration and testbed for the ApiHook class
-          used to hook exported library calls.  
-          Overriding system and runtime API calls for Unit-testing is the 
-          impetus for this project.
+This object provides a mechanism to override system and runtime APIs for use with unit-testing.  
+This object allows APIs to be selectively overridden. Therefore, the feature can be enabled and disabled in the same executable.  
+This is a valuable ability when a test could not normally be performed otherwise.  
+  
+Examples:  
+  -Tests that relate to time  
+  -Tests that open files  
+  -Tests that require network communications  
+  -Tests that require system permissions not accessible to the test machine.  
 
-This file contains a summary of what you will find in each of the files that
-make up your ApiHook application.
+However, there is no reason this class could not be used to hook API calls for other purposes.
 
-ApiHook.vcproj
-    This is the main project file for VC++ projects generated using an Application Wizard.
-    It contains information about the version of Visual C++ that generated the file, and
-    information about the platforms, configurations, and project features selected with the
-    Application Wizard.
+Example
+=======
 
-ApiHook.cpp
-    This is the main application source file.
+'#include "ApiHook.h"''
+''
+'//  Forward Declarations ''
+'typedef int (WINAPI *pfnMessageBoxA)(HWND, PCSTR, PCSTR, UINT);''
+''
+'ApiHook *g_pMessageBoxA = NULL;''
+''
+'// An override that will be called when the target API is hooked.'
+'int WINAPI Hook_MessageBoxA(HWND hWnd, PCSTR pText, PCSTR pCaption, UINT type)''
+'{'
+'  return ((pfnMessageBoxA)(PROC)*g_pMessageBoxA)(hWnd, pText, "Consider MessageBoxA, Hooked!", type);''
+'}'
+''
+'int _tmain(int argc, _TCHAR* argv[])''
+'{''
+'  g_pMessageBoxA = new ApiHook("User32.dll", "MessageBoxA", (PROC)Hook_MessageBoxA);''
+''
+'  // While the API is hooked, the caption will be replaced.'
+'  MessageBoxA(NULL, "Testing the ApiHook functionality", "This is the caption", MB_OK);'
+''
+'  delete g_pMessageBoxA;'
+'  g_pMessageBoxA = NULL;'
+''
+'  MessageBoxA(NULL, "Testing the ApiHook functionality", "This is the caption", MB_OK);''
+''
+'	return 0;'
+}'
 
-/////////////////////////////////////////////////////////////////////////////
-Other standard files:
-
-StdAfx.h, StdAfx.cpp
-    These files are used to build a precompiled header (PCH) file
-    named ApiHook.pch and a precompiled types file named StdAfx.obj.
-
-/////////////////////////////////////////////////////////////////////////////
-Other notes:
-
-
-/////////////////////////////////////////////////////////////////////////////
+Future
+======
+I would like to extend this mechanism to be portible to *nix based systems.  
+I am aware of LD_PRELOAD, dl_open and dl_sym. I am investigating other methods I have seen used. 
