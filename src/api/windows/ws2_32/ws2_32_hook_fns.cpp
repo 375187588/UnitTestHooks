@@ -7,6 +7,8 @@
 ///
 //  ****************************************************************************
 #include "WS2_32.h"
+#include <istream>
+#include <algorithm>
 
 // This is a library unique to the Win32 API
 #if defined(WIN32)
@@ -19,6 +21,12 @@ cxxhook::SocketStateMap g_socket_state; ///< Represents the active state of
 SOCKET                  g_next_id = 1;  ///< Keep a counter to return new ids 
                                         ///  each time a socket is requested.
 
+int                     g_error = 0;    ///< Stores the last socket error 
+                                        ///  for this thread.
+                                        ///  @note Error state is only recorded
+                                        ///  for a single thread. Undefined 
+                                        ///  behavior will occur if multiple 
+                                        ///  threads make socket calls.
 } // namespace unnamed
 
 namespace cxxhook
@@ -61,7 +69,20 @@ void remove_socket_state(SOCKET id)
 }
 
 
+//  ****************************************************************************
+int set_socket_error(int errCode)
+{
+  g_error = errCode;
+  return  0 == g_error
+          ? 0
+          : SOCKET_ERROR;
+}
 
+//  ****************************************************************************
+int get_socket_error()
+{
+  return g_error;
+}
 
 //  ****************************************************************************
 //  Socket Creation ************************************************************
@@ -135,12 +156,20 @@ int Hook_recv(
   SocketStateSptr sp_socket = get_socket_state(s);
   if (!sp_socket)
   {
-    return WSAENOTSOCK;
+    return set_socket_error(WSAENOTSOCK);
   }
 
-  //sp_socket->m_recv_buffer;
+  std::streambuf* pRdBuf = sp_socket->m_recv_buffer.rdbuf();
+  std::streamsize size   = std::min<std::streamsize>(pRdBuf->in_avail(), len);
+  if (size < 0)
+  {
+    // TODO: Currently, no calls will block to prevent unit-tests from blocking indefinitely. Support is planned to emulate blocking socket calls.
+    return  sp_socket->is_blocking()
+            ? set_socket_error(0)
+            : set_socket_error(WSAEWOULDBLOCK);
+  }
 
-  return 0;
+  return (int)pRdBuf->sgetn(buf, size);
 }
 
 //  ****************************************************************************
@@ -164,7 +193,21 @@ int Hook_send(
   int         flags
 )
 {
-  return 0;
+  if (len < 0)
+  {
+    // TODO: Find out what actually happens when a negative index is passed in for the length.
+    return set_socket_error(WSAENOBUFS);
+  }
+
+  SocketStateSptr sp_socket = get_socket_state(s);
+  if (!sp_socket)
+  {
+    return set_socket_error(WSAENOTSOCK);
+  }
+
+  // TODO: Work in configuration for how large the write buffers are for the sockets.
+  std::streambuf* pRdBuf = sp_socket->m_send_buffer.rdbuf();
+  return (int)pRdBuf->sputn(buf, len);
 }
 
 //  ****************************************************************************
@@ -612,7 +655,7 @@ int Hook_getsockname(
 //  ****************************************************************************
 int Hook_WSAGetLastError(void)
 {
-  return 0;
+  return get_socket_error();
 }
 
 //  ****************************************************************************
@@ -620,7 +663,7 @@ void Hook_WSASetLastError(
   int iError
 )
 {
-
+  set_socket_error(iError);
 }
 
 

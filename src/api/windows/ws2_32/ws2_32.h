@@ -2,6 +2,9 @@
 /// 
 /// API Hook library for unit-testing with Windows Socket dependencies.
 ///
+/// The library provides basic support for the most common behaviors required
+/// by application programmers with socket communications.
+///
 /// From the callers point-of-view, when the hooks are active for this class, 
 /// the library calls will behave as the original library behaves.
 /// However, all memory management will be handled internally and no socket

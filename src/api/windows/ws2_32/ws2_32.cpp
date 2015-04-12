@@ -2,6 +2,9 @@
 /// 
 /// API Hook library for unit-testing with Windows Socket dependencies
 ///
+/// The library provides basic support for the most common behaviors required
+/// by application programmers with socket communications.
+///
 /// The MIT License(MIT)
 /// @copyright 2014 Paul M Watt
 ///
