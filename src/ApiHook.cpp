@@ -86,7 +86,7 @@ ApiHook::ApiHook(
                         pathName, 
                         pFnName
                       );
-    ::OutputDebugString(msg);
+    ::OutputDebugStringW(msg);
     return;
   }
 

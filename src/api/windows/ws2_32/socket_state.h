@@ -21,17 +21,13 @@
 
 #include <map>
 #include <memory>
-#include <string>
-#include <vector>
+#include <sstream>
 
 namespace cxxhook
 {
 
 struct SocketState
 {
-  //  Typedefs *****************************************************************
-  typedef std::vector<char>             buffer_t;
-
   //  Construction *************************************************************
   SocketState()
     : m_af(0)
@@ -44,21 +40,19 @@ struct SocketState
   { }
 
   //  Data Members *************************************************************
-  int             m_af;
-  int             m_type;
-  int             m_protocol;
+  int                 m_af;
+  int                 m_type;
+  int                 m_protocol;
 
-  std::string     m_name;
-  sockaddr        m_addr;
+  std::string         m_name;
+  sockaddr            m_addr;
 
-  buffer_t        m_send_buffer;
-  buffer_t        m_recv_buffer;
-
-
-
+  std::stringstream   m_send_buffer;
+  std::stringstream   m_recv_buffer;
 };
 
 typedef std::shared_ptr<SocketState>            SocketStateSptr;
+typedef std::map<SOCKET, SocketStateSptr>       SocketStateMap;
 
 
 } // namespace cxxhook

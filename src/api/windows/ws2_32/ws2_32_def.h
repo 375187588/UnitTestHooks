@@ -21,11 +21,16 @@
 #include <memory>
 #include <string>
 
+#include "socket_state.h"
+
 //  Forward Declarations *******************************************************
 class ApiHook;
 
 namespace cxxhook
 {
+
+void            reset_socket_state();
+SocketStateSptr get_socket_state(SOCKET sock);
 
 //  Function Pointers for Supported Library Hooks ****************************
 
@@ -96,359 +101,357 @@ struct LibraryFunction
 //  ****************************************************************************
 /// MACRO declares an instance of the pointer mapping struct.
 /// Usage:
-///     LibraryFunction[] = 
+///     LibraryFunction Hooks[] = 
 ///     {
 ///       WS2_ENTRY(FirstCall),
 ///       WS2_ENTRY(SecondCall)
 ///     };
 ///
 /// Generates:
-///     LibraryFunction[] = 
+///     LibraryFunction Hooks[] = 
 ///     {
-///       {"FirstCall", pfn_FirstCall},
-///       {"SecondCall", pfn_SecondCall}
+///       {"FirstCall", Hook_FirstCall},
+///       {"SecondCall", Hook_SecondCall}
 ///     };
 ///
-#define WS2_ENTRY(N) {#N, pfn_##N}
+#define WS2_ENTRY(N) {#N, (PROC)Hook_##N}
 
 //  ****************************************************************************
-//  Original Function Declarations *********************************************
+//  Hook Function Declarations *************************************************
 
-//SOCKET accept(
-//  SOCKET,
-//   sockaddr *addr,
-//  int *addrlen
-//);
-//
-//BOOL AcceptEx(
-//  SOCKET sListenSocket,
-//  SOCKET sAcceptSocket,
-//  PVOID lpOutputBuffer,
-//  DWORD dwReceiveDataLength,
-//  DWORD dwLocalAddressLength,
-//  DWORD dwRemoteAddressLength,
-//  LPDWORD lpdwBytesReceived,
-//  LPOVERLAPPED lpOverlapped
-//);
-//
-//
-//int bind(
-//  SOCKET,
-//  const struct sockaddr*,
-//  int
-//);
-//
-//int closesocket(
-//  SOCKET s
-//);
-//
-//int connect(
-//  SOCKET,
-//  const struct sockaddr*,
-//  int
-//);
-//
-//BOOL PASCAL ConnectEx(
-//  SOCKET,
-//  const struct sockaddr*,
-//  int,
-//  PVOID lpSendBuffer,
-//  DWORD dwSendDataLength,
-//  LPDWORD lpdwBytesSent,
-//  LPOVERLAPPED lpOverlapped
-//);
-//
-//BOOL DisconnectEx(
-//  SOCKET hSocket,
-//  LPOVERLAPPED lpOverlapped,
-//  DWORD dwFlags,
-//  DWORD reserved
-//);
-//
-//int WSAAPI getaddrinfo(
-//  PCSTR pNodeName,
-//  PCSTR pServiceName,
-//  const ADDRINFOA *pHints,
-//  PADDRINFOA *ppResult
-//);
-//
-//int WSAAPI GetAddrInfoW(
-//  PCWSTR pNodeName,
-//  PCWSTR pServiceName,
-//  const ADDRINFOW *pHints,
-//  PADDRINFOW *ppResult
-//);
-//
-//struct hostent* FAR gethostbyname(
-//  const char *name
-//);
-//
-//int gethostname(
-//  char*,
-//  int
-//);
-//
-//int WSAAPI GetHostNameW(
-//  PWSTR*,
-//  int
-//);
-//
-//int getpeername(
-//  SOCKET,
-//  struct sockaddr*,
-//  int *namelen
-//);
-//
-//int getsockname(
-//  SOCKET,
-//  struct sockaddr*,
-//  int *namelen
-//);
-//
-//int getsockopt(
-//  SOCKET,
-//  int,
-//  int,
-//  char*,
-//  int*
-//);
-//
-//int ioctlsocket(
-//  SOCKET,
-//  long,
-//  u_long*
-//);
-//
-//int listen(
-//  SOCKET,
-//  int backlog
-//);
-//
-//int recv(
-//  SOCKET,
-//  char*,
-//  int,
-//  int
-//);
-//
-//int recvfrom(
-//  SOCKET,
-//  char*,
-//  int,
-//  int,
-//  struct sockaddr*,
-//  int *fromlen
-//);
-//
-//int select(
-//  int nfds,
-//  fd_set *readfds,
-//  fd_set *writefds,
-//  fd_set *exceptfds,
-//  const struct timeval *timeout
-//);
-//
-//int send(
-//  SOCKET,
-//  const char*,
-//  int,
-//  int
-//);
-//
-//int sendto(
-//  SOCKET,
-//  const char*,
-//  int,
-//  int,
-//  const struct sockaddr *to,
-//  int tolen
-//);
-//
-//int setsockopt(
-//  SOCKET,
-//  int,
-//  int,
-//  const char*,
-//  int optlen
-//);
-//
-//int shutdown(
-//  SOCKET,
-//  int how
-//);
-//
-//SOCKET WSAAPI socket(
-//  int af,
-//  int type,
-//  int protocol
-//);
-//
-//
-//SOCKET WSAAccept(
-//  SOCKET,
-//  struct sockaddr *addr,
-//  LPINT addrlen,
-//  LPCONDITIONPROC lpfnCondition,
-//  DWORD_PTR dwCallbackData
-//);
-//
-//int WSAAsyncSelect(
-//  SOCKET,
-//  HWND hWnd,
-//  unsigned int wMsg,
-//  long lEvent
-//);
-//
-//int WSACancelAsyncRequest(
-//  HANDLE hAsyncTaskHandle
-//);
-//
-//int WSACleanup(void);
-//
-//BOOL WSACloseEvent(
-//  WSAEVENT hEvent
-//);
-//
-//int WSAConnect(
-//  SOCKET,
-//  const struct sockaddr*,
-//  int,
-//  LPWSABUF lpCallerData,
-//  LPWSABUF lpCalleeData,
-//  LPQOS lpSQOS,
-//  LPQOS lpGQOS
-//);
-//
-//WSAEVENT WSACreateEvent(void);
-//
-//int WSADuplicateSocket(
-//  SOCKET,
-//  DWORD dwProcessId,
-//  LPWSAPROTOCOL_INFO lpProtocolInfo
-//);
-//
-//int WSAEventSelect(
-//  SOCKET,
-//  WSAEVENT hEventObject,
-//  long lNetworkEvents
-//);
-//
-//int WSAGetLastError(void);
-//
-//BOOL WSAAPI WSAGetOverlappedResult(
-//  SOCKET,
-//  LPWSAOVERLAPPED lpOverlapped,
-//  LPDWORD lpcbTransfer,
-//  BOOL fWait,
-//  LPDWORD lpdwFlags
-//);
-//
-//int WSAIoctl(
-//  SOCKET,
-//  DWORD dwIoControlCode,
-//  LPVOID lpvInBuffer,
-//  DWORD cbInBuffer,
-//  LPVOID lpvOutBuffer,
-//  DWORD cbOutBuffer,
-//  LPDWORD lpcbBytesReturned,
-//  LPWSAOVERLAPPED lpOverlapped,
-//  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
-//);
-//
-//int WSARecv(
-//  SOCKET,
-//  LPWSABUF lpBuffers,
-//  DWORD dwBufferCount,
-//  LPDWORD lpNumberOfBytesRecvd,
-//  LPDWORD lpFlags,
-//  LPWSAOVERLAPPED lpOverlapped,
-//  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
-//);
-//
-//int WSARecvDisconnect(
-//  SOCKET,
-//  LPWSABUF lpInboundDisconnectData
-//);
-//
-//int PASCAL FAR WSARecvEx(
-//  SOCKET,
-//  char*,
-//  int,
-//  int *flags
-//);
-//
-//int WSARecvFrom(
-//  SOCKET,
-//  LPWSABUF lpBuffers,
-//  DWORD dwBufferCount,
-//  LPDWORD lpNumberOfBytesRecvd,
-//  LPDWORD lpFlags,
-//  struct sockaddr *lpFrom,
-//  LPINT lpFromlen,
-//  LPWSAOVERLAPPED lpOverlapped,
-//  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
-//);
-//
-//BOOL WSAResetEvent(
-//  WSAEVENT hEvent
-//);
-//
-//int WSASend(
-//  SOCKET,
-//  LPWSABUF lpBuffers,
-//  DWORD dwBufferCount,
-//  LPDWORD lpNumberOfBytesSent,
-//  DWORD dwFlags,
-//  LPWSAOVERLAPPED lpOverlapped,
-//  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
-//);
-//
-//int WSASendDisconnect(
-//  SOCKET,
-//  LPWSABUF lpOutboundDisconnectData
-//);
-//
-//int WSASendTo(
-//  SOCKET,
-//  LPWSABUF lpBuffers,
-//  DWORD dwBufferCount,
-//  LPDWORD lpNumberOfBytesSent,
-//  DWORD dwFlags,
-//  const struct sockaddr *lpTo,
-//  int iToLen,
-//  LPWSAOVERLAPPED lpOverlapped,
-//  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
-//);
-//
-//BOOL WSASetEvent(
-//  WSAEVENT hEvent
-//);
-//
-//void WSASetLastError(
-//  int iError
-//);
-//
-//SOCKET WSASocket(
-//  int af,
-//  int type,
-//  int protocol,
-//  LPWSAPROTOCOL_INFO lpProtocolInfo,
-//  GROUP g,
-//  DWORD dwFlags
-//);
-//
-//int WSAStartup(
-//  WORD wVersionRequested,
-//  LPWSADATA lpWSAData
-//);
-//
-//DWORD WSAWaitForMultipleEvents(
-//  DWORD cEvents,
-//  const WSAEVENT *lphEvents,
-//  BOOL fWaitAll,
-//  DWORD dwTimeout,
-//  BOOL fAlertable
-//);
+SOCKET Hook_accept(
+  SOCKET,
+  sockaddr *addr,
+  int *addrlen
+);
+
+BOOL Hook_AcceptEx(
+  SOCKET sListenSocket,
+  SOCKET sAcceptSocket,
+  PVOID lpOutputBuffer,
+  DWORD dwReceiveDataLength,
+  DWORD dwLocalAddressLength,
+  DWORD dwRemoteAddressLength,
+  LPDWORD lpdwBytesReceived,
+  LPOVERLAPPED lpOverlapped
+);
+
+int Hook_bind(
+  SOCKET,
+  const sockaddr*,
+  int
+);
+
+int Hook_closesocket(
+  SOCKET s
+);
+
+int Hook_connect(
+  SOCKET,
+  const sockaddr*,
+  int
+);
+
+BOOL PASCAL Hook_ConnectEx(
+  SOCKET,
+  const sockaddr*,
+  int,
+  PVOID lpSendBuffer,
+  DWORD dwSendDataLength,
+  LPDWORD lpdwBytesSent,
+  LPOVERLAPPED lpOverlapped
+);
+
+BOOL Hook_DisconnectEx(
+  SOCKET hSocket,
+  LPOVERLAPPED lpOverlapped,
+  DWORD dwFlags,
+  DWORD reserved
+);
+
+int WSAAPI Hook_getaddrinfo(
+  PCSTR pNodeName,
+  PCSTR pServiceName,
+  const ADDRINFOA *pHints,
+  PADDRINFOA *ppResult
+);
+
+int WSAAPI Hook_GetAddrInfoW(
+  PCWSTR pNodeName,
+  PCWSTR pServiceName,
+  const ADDRINFOW *pHints,
+  PADDRINFOW *ppResult
+);
+
+hostent* FAR Hook_gethostbyname(
+  const char *name
+);
+
+int Hook_gethostname(
+  char*,
+  int
+);
+
+int WSAAPI Hook_GetHostNameW(
+  PWSTR*,
+  int
+);
+
+int Hook_getpeername(
+  SOCKET,
+  sockaddr*,
+  int *namelen
+);
+
+int Hook_getsockname(
+  SOCKET,
+  sockaddr*,
+  int *namelen
+);
+
+int Hook_getsockopt(
+  SOCKET,
+  int,
+  int,
+  char*,
+  int*
+);
+
+int Hook_ioctlsocket(
+  SOCKET,
+  long,
+  u_long*
+);
+
+int Hook_listen(
+  SOCKET,
+  int backlog
+);
+
+int Hook_recv(
+  SOCKET,
+  char*,
+  int,
+  int
+);
+
+int Hook_recvfrom(
+  SOCKET,
+  char*,
+  int,
+  int,
+  sockaddr*,
+  int *fromlen
+);
+
+int Hook_select(
+  int nfds,
+  fd_set *readfds,
+  fd_set *writefds,
+  fd_set *exceptfds,
+  const timeval *timeout
+);
+
+int Hook_send(
+  SOCKET,
+  const char*,
+  int,
+  int
+);
+
+int Hook_sendto(
+  SOCKET,
+  const char*,
+  int,
+  int,
+  const sockaddr *to,
+  int tolen
+);
+
+int Hook_setsockopt(
+  SOCKET,
+  int,
+  int,
+  const char*,
+  int optlen
+);
+
+int Hook_shutdown(
+  SOCKET,
+  int how
+);
+
+SOCKET WSAAPI Hook_socket(
+  int af,
+  int type,
+  int protocol
+);
+
+SOCKET Hook_WSAAccept(
+  SOCKET,
+  sockaddr *addr,
+  LPINT addrlen,
+  LPCONDITIONPROC lpfnCondition,
+  DWORD_PTR dwCallbackData
+);
+
+int Hook_WSAAsyncSelect(
+  SOCKET,
+  HWND hWnd,
+  unsigned int wMsg,
+  long lEvent
+);
+
+int Hook_WSACancelAsyncRequest(
+  HANDLE hAsyncTaskHandle
+);
+
+int Hook_WSACleanup(void);
+
+BOOL Hook_WSACloseEvent(
+  WSAEVENT hEvent
+);
+
+int Hook_WSAConnect(
+  SOCKET,
+  const sockaddr*,
+  int,
+  LPWSABUF lpCallerData,
+  LPWSABUF lpCalleeData,
+  LPQOS lpSQOS,
+  LPQOS lpGQOS
+);
+
+WSAEVENT Hook_WSACreateEvent(void);
+
+int Hook_WSADuplicateSocket(
+  SOCKET,
+  DWORD dwProcessId,
+  LPWSAPROTOCOL_INFO lpProtocolInfo
+);
+
+int Hook_WSAEventSelect(
+  SOCKET,
+  WSAEVENT hEventObject,
+  long lNetworkEvents
+);
+
+int Hook_WSAGetLastError(void);
+
+BOOL WSAAPI Hook_WSAGetOverlappedResult(
+  SOCKET,
+  LPWSAOVERLAPPED lpOverlapped,
+  LPDWORD lpcbTransfer,
+  BOOL fWait,
+  LPDWORD lpdwFlags
+);
+
+int Hook_WSAIoctl(
+  SOCKET,
+  DWORD dwIoControlCode,
+  LPVOID lpvInBuffer,
+  DWORD cbInBuffer,
+  LPVOID lpvOutBuffer,
+  DWORD cbOutBuffer,
+  LPDWORD lpcbBytesReturned,
+  LPWSAOVERLAPPED lpOverlapped,
+  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
+);
+
+int Hook_WSARecv(
+  SOCKET,
+  LPWSABUF lpBuffers,
+  DWORD dwBufferCount,
+  LPDWORD lpNumberOfBytesRecvd,
+  LPDWORD lpFlags,
+  LPWSAOVERLAPPED lpOverlapped,
+  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
+);
+
+int Hook_WSARecvDisconnect(
+  SOCKET,
+  LPWSABUF lpInboundDisconnectData
+);
+
+int PASCAL FAR Hook_WSARecvEx(
+  SOCKET,
+  char*,
+  int,
+  int *flags
+);
+
+int Hook_WSARecvFrom(
+  SOCKET,
+  LPWSABUF lpBuffers,
+  DWORD dwBufferCount,
+  LPDWORD lpNumberOfBytesRecvd,
+  LPDWORD lpFlags,
+  sockaddr *lpFrom,
+  LPINT lpFromlen,
+  LPWSAOVERLAPPED lpOverlapped,
+  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
+);
+
+BOOL Hook_WSAResetEvent(
+  WSAEVENT hEvent
+);
+
+int Hook_WSASend(
+  SOCKET,
+  LPWSABUF lpBuffers,
+  DWORD dwBufferCount,
+  LPDWORD lpNumberOfBytesSent,
+  DWORD dwFlags,
+  LPWSAOVERLAPPED lpOverlapped,
+  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
+);
+
+int Hook_WSASendDisconnect(
+  SOCKET,
+  LPWSABUF lpOutboundDisconnectData
+);
+
+int Hook_WSASendTo(
+  SOCKET,
+  LPWSABUF lpBuffers,
+  DWORD dwBufferCount,
+  LPDWORD lpNumberOfBytesSent,
+  DWORD dwFlags,
+  const sockaddr *lpTo,
+  int iToLen,
+  LPWSAOVERLAPPED lpOverlapped,
+  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
+);
+
+BOOL Hook_WSASetEvent(
+  WSAEVENT hEvent
+);
+
+void Hook_WSASetLastError(
+  int iError
+);
+
+SOCKET Hook_WSASocket(
+  int af,
+  int type,
+  int protocol,
+  LPWSAPROTOCOL_INFO lpProtocolInfo,
+  GROUP g,
+  DWORD dwFlags
+);
+
+int Hook_WSAStartup(
+  WORD wVersionRequested,
+  LPWSADATA lpWSAData
+);
+
+DWORD Hook_WSAWaitForMultipleEvents(
+  DWORD cEvents,
+  const WSAEVENT *lphEvents,
+  BOOL fWaitAll,
+  DWORD dwTimeout,
+  BOOL fAlertable
+);
 
 } // namespace cxxhook
 

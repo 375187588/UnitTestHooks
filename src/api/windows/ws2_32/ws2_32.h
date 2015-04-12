@@ -37,11 +37,6 @@
 namespace cxxhook
 {
 
-// TODO: Create function pointer declarations for each of the APIs to be hooked.
-// TODO: Create a state tracking implementation to emulate data transfer
-// TODO: Create a way to specify the return value/behavior of an API
-
-
 //  ****************************************************************************
 /// API Hook library for unit-testing with Windows Socket dependencies.
 ///
@@ -69,17 +64,18 @@ public:
   const WSADATA&  get_WSADATA() const             { return m_ws_data; }
 
   //  Hook Control / Status ****************************************************
-  void hook_all();
-  void unhook_all();
-
-  bool is_all_hooked() const;
+  void hook();
+  void unhook();
+  bool is_hooked() const;
 
   void reset();
+
+  SocketStateSptr get_socket_state(SOCKET sock);
 
   //  Enumerated API List ******************************************************
   enum API_enum
   {
-    k_unspecified = 0,
+    k_unspecified = -1,
 
     accept,
     AcceptEx,
@@ -136,25 +132,13 @@ public:
     WSAStartup,
     WSAWaitForMultipleEvents,
 
-    k_api_count = WSAWaitForMultipleEvents
+    k_api_count
   };
-
-  //  API Level Hook Control / Status ******************************************
-  void hook     (API_enum api);
-  void unhook   (API_enum api);
-
-  bool is_hooked(API_enum api) const;
-
-  //  Library Functions ********************************************************
-  SocketStateSptr get_socket_state(SOCKET sock);
-
 
 private:
   //  Typedefs *****************************************************************
   typedef std::shared_ptr<ApiHook>                ApiHookSptr;
   typedef std::map<API_enum, ApiHookSptr>         ApiHookMap;
-
-  typedef std::map<SOCKET, SocketStateSptr>       SocketStateMap;
 
   //  Data Members *************************************************************
   WORD                  m_version;      ///< The requested winsock version.
@@ -164,8 +148,6 @@ private:
                                         ///  successfully initialized.
 
   ApiHookMap            m_hooks;        ///< The set of APIs that are hooked.
-  SocketStateMap        m_state;        ///< Represents the active state of
-                                        ///  the emulated sockets API for each test.
   
   //  Methods ******************************************************************
   int Initialize();

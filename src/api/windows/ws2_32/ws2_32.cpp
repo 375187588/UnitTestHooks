@@ -18,6 +18,61 @@
 namespace cxxhook
 {
 
+//  ****************************************************************************
+LibraryFunction WS2_32_Hooks[WS2_32::k_api_count] = 
+{
+  WS2_ENTRY(accept),
+  WS2_ENTRY(AcceptEx),
+  WS2_ENTRY(bind),
+  WS2_ENTRY(closesocket),
+  WS2_ENTRY(connect),
+  WS2_ENTRY(ConnectEx),
+  WS2_ENTRY(DisconnectEx),
+  WS2_ENTRY(getaddrinfo),
+  WS2_ENTRY(GetAddrInfoW),
+  WS2_ENTRY(gethostbyname),
+  WS2_ENTRY(gethostname),
+  WS2_ENTRY(GetHostNameW),
+  WS2_ENTRY(getpeername),
+  WS2_ENTRY(getsockname),
+  WS2_ENTRY(getsockopt),
+  WS2_ENTRY(ioctlsocket),
+  WS2_ENTRY(listen),
+  WS2_ENTRY(recv),
+  WS2_ENTRY(recvfrom),
+  WS2_ENTRY(select),
+  WS2_ENTRY(send),
+  WS2_ENTRY(sendto),
+  WS2_ENTRY(setsockopt),
+  WS2_ENTRY(shutdown),
+  WS2_ENTRY(socket),
+  WS2_ENTRY(WSAAccept),
+  WS2_ENTRY(WSAAsyncSelect),
+  WS2_ENTRY(WSACancelAsyncRequest),
+  WS2_ENTRY(WSACleanup),
+  WS2_ENTRY(WSACloseEvent),
+  WS2_ENTRY(WSAConnect),
+  WS2_ENTRY(WSACreateEvent),
+  WS2_ENTRY(WSADuplicateSocket),
+  WS2_ENTRY(WSAEventSelect),
+  WS2_ENTRY(WSAGetLastError),
+  WS2_ENTRY(WSAGetOverlappedResult),
+  WS2_ENTRY(WSAIoctl),
+  WS2_ENTRY(WSARecv),
+  WS2_ENTRY(WSARecvDisconnect),
+  WS2_ENTRY(WSARecvEx),
+  WS2_ENTRY(WSARecvFrom),
+  WS2_ENTRY(WSAResetEvent),
+  WS2_ENTRY(WSASend),
+  WS2_ENTRY(WSASendDisconnect),
+  WS2_ENTRY(WSASendTo),
+  WS2_ENTRY(WSASetEvent),
+  WS2_ENTRY(WSASetLastError),
+  WS2_ENTRY(WSASocket),
+  WS2_ENTRY(WSAStartup),
+  WS2_ENTRY(WSAWaitForMultipleEvents)
+};
+
 
 //  ****************************************************************************
 WS2_32::WS2_32()
@@ -40,7 +95,7 @@ WS2_32::WS2_32(USHORT major, USHORT minor)
 //  ****************************************************************************
 WS2_32::~WS2_32()
 {
-  unhook_all();
+  unhook();
 
   if (m_is_init)
   {
@@ -64,64 +119,44 @@ int WS2_32::Initialize()
 }
 
 //  ****************************************************************************
-void WS2_32::hook_all()
+void WS2_32::hook()
 {
-
+  // Clear the slate.
+  unhook();
+  // Now create new hooks for all of the functions.
+  for (size_t index = 0; index < k_api_count; ++index)
+  {
+    m_hooks[API_enum(index)] = 
+      std::make_shared<ApiHook>(k_library_name.c_str(),
+                                WS2_32_Hooks[index].name,
+                                WS2_32_Hooks[index].pfn);
+  }
 }
 
 //  ****************************************************************************
-void WS2_32::unhook_all()
+void WS2_32::unhook()
 {
   // Remove every entry from the hook map.
   m_hooks.clear();
-  m_state.clear();
+  reset();
 }
 
 //  ****************************************************************************
-bool WS2_32::is_all_hooked() const
+bool WS2_32::is_hooked() const
 {
   return m_hooks.size() == k_api_count;
 }
 
 //  ****************************************************************************
-void WS2_32::hook(WS2_32::API_enum api)
-{
-  if (is_hooked(api))
-  {
-    return;
-  }
-
-  // TODO: Add the specified entry to the map.
-}
-
-//  ****************************************************************************
-void WS2_32::unhook(WS2_32::API_enum api)
-{
-
-}
-
-//  ****************************************************************************
-bool WS2_32::is_hooked(WS2_32::API_enum api) const
-{
-  return false;
-}
-
-//  ****************************************************************************
 void WS2_32::reset()
 {
-  m_state.clear();
+  cxxhook::reset_socket_state();
 }
 
 //  ****************************************************************************
 SocketStateSptr WS2_32::get_socket_state(SOCKET sock)
 {
-  SocketStateMap::iterator iter = m_state.find(sock);
-  if (iter != m_state.end())
-  {
-    return iter->second;
-  }
-
-  return SocketStateSptr();
+  return cxxhook::get_socket_state(sock);
 }
 
 
