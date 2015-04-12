@@ -13,6 +13,14 @@ Examples:
 
 However, there is no reason this class could not be used to hook API calls for other purposes.
 
+Activity
+========
+Currently I am writing a class abstraction for Windows Sockets. This class will hook ~50 functions from the library, in order to facilitate unit-testing without the need to open sockets, or write ridiculous mock-object behavior.  
+
+If you have existing socket wrappers, you can continue to call into them (once you know they are correct with proper tests). Their calls into the hooked socket API will transfer buffered data between local memory buffers that are identified with the SOCKET's id.  
+  
+Once this is completed, I plan on expanding support for file, thread, and time-based API's.
+
 Example
 =======
 
