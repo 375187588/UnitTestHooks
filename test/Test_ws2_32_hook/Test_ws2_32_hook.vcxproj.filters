@@ -15,6 +15,9 @@
     <Filter Include="Source Files\generated">
       <UniqueIdentifier>{1ff25824-13c8-4c8a-88f2-3a8662ad9d42}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\sockets">
+      <UniqueIdentifier>{2a1a1cc0-ecdd-4193-9391-f3f52f05afe4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Src\Test_ws2_32_hook.h">
@@ -27,6 +30,39 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\api\windows\ws2_32\socket_state.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLIp.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLIpAddress.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLIpResolve.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLNetwork.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLSocket.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLSocketDef.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLSocketIoControl.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLSocketOperations.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLSocketOptions.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLSocketSelector.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\api\compiler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

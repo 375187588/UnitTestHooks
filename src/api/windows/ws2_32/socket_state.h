@@ -9,15 +9,7 @@
 #ifndef CXXHOOK_SOCKET_STATE_H_INCLUDED
 #define CXXHOOK_SOCKET_STATE_H_INCLUDED
 //  Includes *******************************************************************
-
-#if defined(WIN32)
-#define WIN32_LEAN_AND_MEAN
-
-#include <winsock2.h>
-#include <Ws2tcpip.h>
-
-#endif
-
+#include "sockets/BLNetwork.h"
 
 #include <map>
 #include <memory>

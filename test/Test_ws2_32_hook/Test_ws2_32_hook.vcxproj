@@ -52,7 +52,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>./;Src;\\pandora\all\software\foss\CxxTest\latest\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)\</ObjectFileName>
       <ProgramDataBaseFileName>$(IntDir)\vc80.pdb</ProgramDataBaseFileName>
     </ClCompile>
@@ -104,6 +104,17 @@ Generate the test runner...
     <ClCompile Include="Src\Generated\Test_ws2_32_hookRunner.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\api\compiler.h" />
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLIp.h" />
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLIpAddress.h" />
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLIpResolve.h" />
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLNetwork.h" />
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLSocket.h" />
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLSocketDef.h" />
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLSocketIoControl.h" />
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLSocketOperations.h" />
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLSocketOptions.h" />
+    <ClInclude Include="..\..\src\api\windows\ws2_32\sockets\BLSocketSelector.h" />
     <ClInclude Include="..\..\src\api\windows\ws2_32\socket_state.h" />
     <ClInclude Include="..\..\src\api\windows\ws2_32\ws2_32.h" />
     <ClInclude Include="..\..\src\api\windows\ws2_32\ws2_32_def.h" />
