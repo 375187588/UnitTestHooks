@@ -16,55 +16,93 @@
 namespace // unnamed
 {
 
-cxxhook::SocketStateMap g_socket_state; ///< Represents the active state of
-                                        ///  the emulated sockets API for each test.
-SOCKET                  g_next_id = 1;  ///< Keep a counter to return new ids 
-                                        ///  each time a socket is requested.
+cxxhook::TcpSocketMap g_tcp_sockets;      ///< Represents the active state of the
+                                          ///  emulated tcp sockets for each test.
+cxxhook::UdpSocketMap g_udp_sockets;      ///< Represents the active state of the
+                                          ///  emulated udp sockets for each test.
+SOCKET                g_next_tcp_id = 1;  ///< Each tcp socket will be given 
+                                          ///  a unique id, odd ID.
+SOCKET                g_next_udp_id = 2;  ///< Each udp socket will be given 
+                                          ///  a unique id, even ID.
 
-int                     g_error = 0;    ///< Stores the last socket error 
-                                        ///  for this thread.
-                                        ///  @note Error state is only recorded
-                                        ///  for a single thread. Undefined 
-                                        ///  behavior will occur if multiple 
-                                        ///  threads make socket calls.
 } // namespace unnamed
 
 namespace cxxhook
 {
 
+using namespace ipc;
+
 //  ****************************************************************************
-void reset_socket_state()
+bool is_udp(SOCKET s)
 {
-  g_socket_state.clear();
+  return (static_cast<unsigned int>(s) % 2) == 0;
 }
 
 //  ****************************************************************************
-SocketStateSptr get_socket_state(SOCKET id)
+void reset_socket_state()
 {
-  SocketStateMap::iterator iter = g_socket_state.find(id);
-  if (iter != g_socket_state.end())
+  g_tcp_sockets.clear();
+  g_udp_sockets.clear();
+}
+
+//  ****************************************************************************
+TcpSocketSP get_tcp_socket(SOCKET id)
+{
+  TcpSocketMap::iterator iter = g_tcp_sockets.find(id);
+  if (iter != g_tcp_sockets.end())
   {
     return iter->second;
   }
 
-  return SocketStateSptr();
+  return TcpSocketSP();
 }
 
 //  ****************************************************************************
-SOCKET add_socket_state(SocketStateSptr sp_socket)
+UdpSocketSP get_udp_socket(SOCKET id)
 {
-  SOCKET id = g_next_id++;
-  g_socket_state[id] = sp_socket;
+  UdpSocketMap::iterator iter = g_udp_sockets.find(id);
+  if (iter != g_udp_sockets.end())
+  {
+    return iter->second;
+  }
+
+  return UdpSocketSP();
+}
+
+//  ****************************************************************************
+SOCKET add_socket_state(TcpSocketSP sp_socket)
+{
+  SOCKET id = g_next_tcp_id += 2;
+  g_tcp_sockets[id] = sp_socket;
+  return id;
+}
+
+//  ****************************************************************************
+SOCKET add_socket_state(UdpSocketSP sp_socket)
+{
+  SOCKET id = g_next_udp_id += 2;
+  g_udp_sockets[id] = sp_socket;
   return id;
 }
 
 //  ****************************************************************************
 void remove_socket_state(SOCKET id)
 {
-  SocketStateMap::iterator iter = g_socket_state.find(id);
-  if (iter != g_socket_state.end())
+  if (is_udp(id))
   {
-    g_socket_state.erase(iter);
+    UdpSocketMap::iterator iter = g_udp_sockets.find(id);
+    if (iter != g_udp_sockets.end())
+    {
+      g_udp_sockets.erase(iter);
+    }  
+  }
+  else
+  {
+    TcpSocketMap::iterator iter = g_tcp_sockets.find(id);
+    if (iter != g_tcp_sockets.end())
+    {
+      g_tcp_sockets.erase(iter);
+    }    
   }
 }
 
@@ -72,8 +110,8 @@ void remove_socket_state(SOCKET id)
 //  ****************************************************************************
 int set_socket_error(int errCode)
 {
-  g_error = errCode;
-  return  0 == g_error
+  WSASetLastError(errCode);
+  return  0 == errCode
           ? 0
           : SOCKET_ERROR;
 }
@@ -81,7 +119,7 @@ int set_socket_error(int errCode)
 //  ****************************************************************************
 int get_socket_error()
 {
-  return g_error;
+  return WSAGetLastError();
 }
 
 //  ****************************************************************************
@@ -93,12 +131,24 @@ SOCKET WSAAPI Hook_socket(
   int protocol
 )
 {
-  SocketStateSptr sp_socket = std::make_shared<SocketState>();
-  sp_socket->m_af       = af;
-  sp_socket->m_type     = type;
-  sp_socket->m_protocol = protocol;
+  // Only supporting UDP and TCP socket types.
+  SOCKET s = -1;
+  if (SOCK_DGRAM == type)
+  {
+    UdpSocketSP sp_socket = std::make_shared<Udp::Socket>();
+    s = add_socket_state(sp_socket);
+  }
+  else if (SOCK_STREAM == type)
+  {
+    TcpSocketSP sp_socket = std::make_shared<Tcp::Socket>();
+    s = add_socket_state(sp_socket);
+  }
+  else
+  {
+    return set_socket_error(WSA_INVALID_PARAMETER);
+  }
 
-  return add_socket_state(sp_socket);
+  return s;
 }
 
 //  ****************************************************************************
@@ -111,13 +161,29 @@ int Hook_closesocket(
 }
 
 //  ****************************************************************************
+template <typename T>
+int shutdownT(
+  std::shared_ptr<T>        sp_socket,
+  SocketBase::ShutdownType  how
+)
+{
+  if (!sp_socket)
+  {
+    return set_socket_error(error::k_socketNotSocket);
+  }
+
+  return sp_socket->Shutdown(how);
+}
+
+//  ****************************************************************************
 int Hook_shutdown(
   SOCKET  s,
   int     how
 )
 {
-  // TODO: 
-  return 0;
+  return  is_udp(s)
+          ? shutdownT(get_udp_socket(s), SocketBase::ShutdownType(how))
+          : shutdownT(get_tcp_socket(s), SocketBase::ShutdownType(how));
 }
 
 //  ****************************************************************************
@@ -130,21 +196,28 @@ SOCKET Hook_WSASocket(
   DWORD dwFlags
 )
 {
-  return 0;
-}
-
-//  ****************************************************************************
-int Hook_WSADuplicateSocket(
-  SOCKET              s,
-  DWORD               dwProcessId,
-  LPWSAPROTOCOL_INFO  lpProtocolInfo
-)
-{
-  // TODO: Not sure how valuable this will be in general, may remove it.
-  return 0;
+  // TODO: Return and add support for the other parameters, most likely have the berkeley like version call this version instead.
+  return Hook_socket(af, type, protocol);
 }
 
 //  Socket Transfer ************************************************************
+//  ****************************************************************************
+template <typename T>
+int recvT(
+  std::shared_ptr<T>  sp_socket,
+  char*               buf,
+  int                 len,
+  int                 flags
+)
+{
+  if (!sp_socket)
+  {
+    return set_socket_error(error::k_socketNotSocket);
+  }
+
+  return sp_socket->Receive(buf, len, flags);
+}
+
 //  ****************************************************************************
 int Hook_recv(
   SOCKET  s,
@@ -153,23 +226,27 @@ int Hook_recv(
   int     flags
 )
 {
-  SocketStateSptr sp_socket = get_socket_state(s);
-  if (!sp_socket)
-  {
-    return set_socket_error(WSAENOTSOCK);
-  }
+  return  is_udp(s)
+          ? recvT(get_udp_socket(s), buf, len, flags)
+          : recvT(get_tcp_socket(s), buf, len, flags);
 
-  std::streambuf* pRdBuf = sp_socket->m_recv_buffer.rdbuf();
-  std::streamsize size   = std::min<std::streamsize>(pRdBuf->in_avail(), len);
-  if (size < 0)
-  {
-    // TODO: Currently, no calls will block to prevent unit-tests from blocking indefinitely. Support is planned to emulate blocking socket calls.
-    return  sp_socket->is_blocking()
-            ? set_socket_error(0)
-            : set_socket_error(WSAEWOULDBLOCK);
-  }
+  //TcpSocketSP sp_socket = get_tcp_socket(s);
+  //if (!sp_socket)
+  //{
+  //  return set_socket_error(WSAENOTSOCK);
+  //}
 
-  return (int)pRdBuf->sgetn(buf, size);
+  //std::streambuf* pRdBuf = sp_socket->m_recv_buffer.rdbuf();
+  //std::streamsize size   = std::min<std::streamsize>(pRdBuf->in_avail(), len);
+  //if (size < 0)
+  //{
+  //  // TODO: Currently, no calls will block to prevent unit-tests from blocking indefinitely. Support is planned to emulate blocking socket calls.
+  //  return  sp_socket->IsBlocking()
+  //          ? set_socket_error(0)
+  //          : set_socket_error(WSAEWOULDBLOCK);
+  //}
+
+  //return (int)pRdBuf->sgetn(buf, size);
 }
 
 //  ****************************************************************************
@@ -182,7 +259,54 @@ int Hook_recvfrom(
   int *     fromlen
 )
 {
-  return 0;
+  // filter out TCP type sockets.
+  if (!is_udp(s))
+  {
+    return set_socket_error(error::k_socketPrototype);
+  }
+
+  if (!from)
+  {
+    return set_socket_error(error::k_invalidArguement);
+  }
+
+  UdpSocketSP sp_socket = get_udp_socket(s);
+  if (!sp_socket)
+  {
+    return set_socket_error(error::k_socketNotSocket);
+  }
+
+  Address         address((unsigned long)from->sa_data);
+  Udp::Endpoint   endpoint(address, 0);
+
+  int result = sp_socket->ReceiveFrom(buf, len, endpoint, flags);
+
+  if (fromlen)
+  {
+    *fromlen = sizeof(unsigned long);
+
+    unsigned long from_addr = endpoint.Address().ToUlong();
+    memcpy(from, &from_addr, sizeof(unsigned long));
+  }
+
+  return result;
+}
+
+//  ****************************************************************************
+template <typename T>
+int sendT(
+  std::shared_ptr<T>  sp_socket,
+  const char*         buf,
+  int                 len,
+  int                 flags
+)
+{
+  if (!sp_socket)
+  {
+    return set_socket_error(error::k_socketNotSocket);
+  }
+
+  return sp_socket->Send(buf, len, flags);
 }
 
 //  ****************************************************************************
@@ -193,21 +317,25 @@ int Hook_send(
   int         flags
 )
 {
-  if (len < 0)
-  {
-    // TODO: Find out what actually happens when a negative index is passed in for the length.
-    return set_socket_error(WSAENOBUFS);
-  }
+  return  is_udp(s)
+          ? sendT(get_udp_socket(s), buf, len, flags)
+          : sendT(get_tcp_socket(s), buf, len, flags);
+  //if (len < 0)
+  //{
+  //  // TODO: Find out what actually happens when a negative index is passed in for the length.
+  //  return set_socket_error(WSAENOBUFS);
+  //}
 
-  SocketStateSptr sp_socket = get_socket_state(s);
-  if (!sp_socket)
-  {
-    return set_socket_error(WSAENOTSOCK);
-  }
+  //SocketSP sp_socket = get_socket_state(s);
+  //if (!sp_socket)
+  //{
+  //  return set_socket_error(WSAENOTSOCK);
+  //}
 
-  // TODO: Work in configuration for how large the write buffers are for the sockets.
-  std::streambuf* pRdBuf = sp_socket->m_send_buffer.rdbuf();
-  return (int)pRdBuf->sputn(buf, len);
+  //// TODO: Work in configuration for how large the write buffers are for the sockets.
+  //std::streambuf* pRdBuf = sp_socket->m_send_buffer.rdbuf();
+  //return (int)pRdBuf->sputn(buf, len);
+  return 0;
 }
 
 //  ****************************************************************************
@@ -220,10 +348,48 @@ int Hook_sendto(
   int             tolen
 )
 {
-  return 0;
+  // filter out TCP type sockets.
+  if (!is_udp(s))
+  {
+    return set_socket_error(error::k_socketPrototype);
+  }
+
+  if (!to)
+  {
+    return set_socket_error(error::k_invalidArguement);
+  }
+
+  UdpSocketSP sp_socket = get_udp_socket(s);
+  if (!sp_socket)
+  {
+    return set_socket_error(error::k_socketNotSocket);
+  }
+
+  if (tolen != sizeof(unsigned long))
+  {
+    return set_socket_error(error::k_invalidArguement);
+  }
+
+  Address         address((unsigned long)to->sa_data);
+  Udp::Endpoint   endpoint(address, 0);
+
+  return sp_socket->SendTo(buf, len, endpoint, flags);
 }
 
 //  Socket Configure ***********************************************************
+//  ****************************************************************************
+template <typename T>
+int getsockoptT(
+  std::shared_ptr<T>  sp_socket,
+  int     level,
+  int     optname,
+  char*   optval,
+  int*    optlen
+)
+{
+  return 0;
+}
+
 //  ****************************************************************************
 int Hook_getsockopt(
   SOCKET  s,
@@ -231,6 +397,21 @@ int Hook_getsockopt(
   int     optname,
   char*   optval,
   int*    optlen
+)
+{
+  return  is_udp(s)
+          ? getsockoptT(get_udp_socket(s), level, optname, optval, optlen)
+          : getsockoptT(get_tcp_socket(s), level, optname, optval, optlen);
+}
+
+//  ****************************************************************************
+template <typename T>
+int setsockoptT(
+  std::shared_ptr<T>  sp_socket,
+  int         level,
+  int         optname,
+  const char* optval,
+  int         optlen
 )
 {
   return 0;
@@ -245,6 +426,19 @@ int Hook_setsockopt(
   int         optlen
 )
 {
+  return  is_udp(s)
+          ? setsockoptT(get_udp_socket(s), level, optname, optval, optlen)
+          : setsockoptT(get_tcp_socket(s), level, optname, optval, optlen);
+}
+
+//  ****************************************************************************
+template <typename T>
+int ioctlsocketT(
+  std::shared_ptr<T>  sp_socket,
+  long    cmd,
+  u_long* argp 
+)
+{
   return 0;
 }
 
@@ -255,10 +449,23 @@ int Hook_ioctlsocket(
   u_long* argp 
 )
 {
-  return 0;
+  return  is_udp(s)
+          ? ioctlsocketT(get_udp_socket(s), cmd, argp)
+          : ioctlsocketT(get_tcp_socket(s), cmd, argp);
 }
 
 //  Socket Actions *************************************************************
+//  ****************************************************************************
+template <typename T>
+int acceptT(
+  std::shared_ptr<T>  sp_socket,
+  sockaddr *addr,
+  int *     addrlen
+)
+{
+  return 0;
+}
+
 //  ****************************************************************************
 SOCKET Hook_accept(
   SOCKET    s,
@@ -266,7 +473,9 @@ SOCKET Hook_accept(
   int *     addrlen
 )
 {
-  return 0;
+  return  is_udp(s)
+          ? acceptT(get_udp_socket(s), addr, addrlen)
+          : acceptT(get_tcp_socket(s), addr, addrlen);
 }
 
 //  ****************************************************************************
@@ -282,13 +491,73 @@ SOCKET Hook_WSAAccept(
 }
 
 //  ****************************************************************************
+template <typename T>
+int bindT(
+  std::shared_ptr<T>  sp_socket,
+  const sockaddr*     name,
+  int                 namelen
+)
+{
+  if (!sp_socket)
+  {
+    return set_socket_error(error::k_socketNotSocket);
+  }
+
+  if (!name)
+  {
+    return set_socket_error(error::k_invalidArguement);
+  }
+
+  if (namelen != sizeof(unsigned long))
+  {
+    return set_socket_error(error::k_invalidArguement);
+  }
+
+  ip::Address       addr((unsigned long)name);
+  T::EndpointType   local(addr, 0);
+
+  return sp_socket->Bind(local);
+}
+
+//  ****************************************************************************
 int Hook_bind(
   SOCKET          s,
   const sockaddr* name,
   int             namelen
 )
 {
-  return 0;
+  return  is_udp(s)
+          ? bindT(get_udp_socket(s), name, namelen)
+          : bindT(get_tcp_socket(s), name, namelen);
+}
+
+//  ****************************************************************************
+template <typename T>
+int connectT(
+  std::shared_ptr<T>  sp_socket,
+  const sockaddr*     name,
+  int                 namelen
+)
+{
+  if (!sp_socket)
+  {
+    return set_socket_error(error::k_socketNotSocket);
+  }
+
+  if (!name)
+  {
+    return set_socket_error(error::k_invalidArguement);
+  }
+
+  if (namelen != sizeof(unsigned long))
+  {
+    return set_socket_error(error::k_invalidArguement);
+  }
+
+  ip::Address       addr((unsigned long)name);
+  T::EndpointType                 peer(addr, 0);
+
+  return sp_socket->Connect(peer);
 }
 
 //  ****************************************************************************
@@ -298,7 +567,24 @@ int Hook_connect(
   int             namelen
 )
 {
-  return 0;
+  return  is_udp(s)
+          ? connectT(get_udp_socket(s), name, namelen)
+          : connectT(get_tcp_socket(s), name, namelen);
+}
+
+//  ****************************************************************************
+template <typename T>
+int listenT(
+  std::shared_ptr<T>  sp_socket,
+  int                 backlog
+)
+{
+  if (!sp_socket)
+  {
+    return set_socket_error(error::k_socketNotSocket);
+  }
+
+  return sp_socket->Listen(backlog);
 }
 
 //  ****************************************************************************
@@ -307,7 +593,9 @@ int Hook_listen(
   int     backlog
 )
 {
-  return 0;
+  return  is_udp(s)
+          ? listenT(get_udp_socket(s), backlog)
+          : listenT(get_tcp_socket(s), backlog);
 }
 
 //  ****************************************************************************

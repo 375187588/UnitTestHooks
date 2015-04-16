@@ -228,7 +228,7 @@ public:
   const DataType* Data() const          { return &address_.base;}
 
   //  Members ******************************************************************
-  void Address(const ip::Address &addr) { BasicEndpoint<InternetProtocol> tmpEndPoint(addr, port());
+  void Address(const ip::Address &addr) { BasicEndpoint<InternetProtocol> tmpEndPoint(addr, Port());
                                           address_ = tmpEndpoint.address_;
                                         }
 

@@ -29,8 +29,9 @@ class ApiHook;
 namespace cxxhook
 {
 
-void            reset_socket_state();
-SocketStateSptr get_socket_state(SOCKET sock);
+void        reset_socket_state();
+TcpSocketSP get_tcp_socket(SOCKET sock);
+UdpSocketSP get_udp_socket(SOCKET sock);
 
 //  Function Pointers for Supported Library Hooks ****************************
 

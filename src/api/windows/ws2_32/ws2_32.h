@@ -73,7 +73,8 @@ public:
 
   void reset();
 
-  SocketStateSptr get_socket_state(SOCKET sock);
+  TcpSocketSP get_tcp_socket_state(SOCKET sock);
+  UdpSocketSP get_udp_socket_state(SOCKET sock);
 
   //  Enumerated API List ******************************************************
   enum API_enum
@@ -115,22 +116,19 @@ public:
 
     WSAConnect,
     WSACreateEvent,
-    WSADuplicateSocket,
     WSAEventSelect,
-    WSAGetLastError,
     WSAGetOverlappedResult,
     WSAIoctl,
     WSARecv,
     WSARecvDisconnect,
     WSARecvEx,
-
     WSARecvFrom,
     WSAResetEvent,
+
     WSASend,
     WSASendDisconnect,
     WSASendTo,
     WSASetEvent,
-    WSASetLastError,
     WSASocket,
     WSAStartup,
     WSAWaitForMultipleEvents,

@@ -92,16 +92,22 @@ private:
       NoDelay;
 
     //  Construction ***********************************************************
-             StreamSocket_  ()                              :
-                                   StreamSocket()         { }
+    StreamSocket_()
+      : StreamSocket()         
+    { }
 
-    explicit StreamSocket_  ( const ProtocolType &protocol) :
-                                   StreamSocket(protocol) { }
+    explicit 
+      StreamSocket_  ( const ProtocolType &protocol) 
+      : StreamSocket(protocol) 
+    { }
 
-    explicit StreamSocket_  ( const EndpointType &endpoint) :
-                                   StreamSocket(endpoint) { }
+    explicit 
+      StreamSocket_  ( const EndpointType &endpoint) 
+      : StreamSocket(endpoint) 
+    { }
 
-            ~StreamSocket_  ( )                           { }
+    ~StreamSocket_  ( )
+    { }
 
   };
 };
@@ -161,16 +167,22 @@ private:
     typedef DatagramSocket                ThisType;
 
     //  Construction ***********************************************************
-             DatagramSocket_()                              :
-                                   DatagramSocket()         { }
+    DatagramSocket_()                              
+      : DatagramSocket()         
+    { }
 
-    explicit DatagramSocket_( const ProtocolType &protocol) :
-                                   DatagramSocket(protocol) { }
+    explicit 
+      DatagramSocket_( const ProtocolType &protocol) 
+      : DatagramSocket(protocol) 
+    { }
 
-    explicit DatagramSocket_( const EndpointType &endpoint) :
-                                   DatagramSocket(endpoint) { }
+    explicit 
+      DatagramSocket_( const EndpointType &endpoint) 
+      : DatagramSocket(endpoint) 
+    { }
 
-            ~DatagramSocket_( )                             { }
+    ~DatagramSocket_( )
+    { }
 
   };
 };

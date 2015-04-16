@@ -56,9 +56,7 @@ LibraryFunction WS2_32_Hooks[WS2_32::k_api_count] =
   WS2_ENTRY(WSACloseEvent),
   WS2_ENTRY(WSAConnect),
   WS2_ENTRY(WSACreateEvent),
-  WS2_ENTRY(WSADuplicateSocket),
   WS2_ENTRY(WSAEventSelect),
-  WS2_ENTRY(WSAGetLastError),
   WS2_ENTRY(WSAGetOverlappedResult),
   WS2_ENTRY(WSAIoctl),
   WS2_ENTRY(WSARecv),
@@ -70,7 +68,6 @@ LibraryFunction WS2_32_Hooks[WS2_32::k_api_count] =
   WS2_ENTRY(WSASendDisconnect),
   WS2_ENTRY(WSASendTo),
   WS2_ENTRY(WSASetEvent),
-  WS2_ENTRY(WSASetLastError),
   WS2_ENTRY(WSASocket),
   WS2_ENTRY(WSAStartup),
   WS2_ENTRY(WSAWaitForMultipleEvents)
@@ -157,9 +154,15 @@ void WS2_32::reset()
 }
 
 //  ****************************************************************************
-SocketStateSptr WS2_32::get_socket_state(SOCKET sock)
+TcpSocketSP WS2_32::get_tcp_socket_state(SOCKET sock)
 {
-  return cxxhook::get_socket_state(sock);
+  return cxxhook::get_tcp_socket(sock);
+}
+
+//  ****************************************************************************
+UdpSocketSP WS2_32::get_udp_socket_state(SOCKET sock)
+{
+  return cxxhook::get_udp_socket(sock);
 }
 
 

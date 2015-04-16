@@ -27,6 +27,9 @@
 #include "BLSocketOptions.h"
 #include "BLSocketOperations.h"
 
+#include <queue>
+#include <sstream>
+
 // Define BL_DEF_SOCKET_TIMEOUT before including BLSocket.h to override the
 // internal processing timeout value used in the BasicSocket implmentation.
 #ifndef BL_DEF_SOCKET_TIMEOUT
@@ -262,27 +265,11 @@ protected:
   int           Send_           ( const void* pBuf, int len, SocketBase::MsgFlags flags);
 
   //  Socket Call Impl Methods *************************************************
-  bool          CallAccept_     ( ThisType &connSocket, EndpointType &peer) 
-                                    { connSocket.Close();
-                                      int size = peer.Size();
-                                      detail::socketType connDescriptor = 
-                                          ::accept(descriptor_, peer.Data(), &size);
-                                      if (detail::k_invalidSocket == connDescriptor)
-                                        return false; 
-
-                                      return connSocket.Assign_(connDescriptor);
-                                    }
-  void          CallClose_      ( ) { if (IsValid())
-                                      { ::closesocket(descriptor_);
-                                        descriptor_ = detail::k_invalidSocket;
-                                      }
-                                    }
-  bool          CallConnect_    ( const EndpointType &peer)
-                                    { return (::connect(descriptor_, peer.Data(), peer.Size()) != detail::k_socketError);}
-  int           CallReceive_    ( void* pBuf, int len, MsgFlags flags)
-                                   { return ::recv(descriptor_, reinterpret_cast<char*>(pBuf), len, flags);}
-  int           CallSend_       ( const void* pBuf, int len, MsgFlags flags)
-                                    { return ::send(descriptor_, reinterpret_cast<const char*>(pBuf), len, flags);}
+  bool          CallAccept_     ( ThisType &connSocket, EndpointType &peer);
+  void          CallClose_      ( );
+  bool          CallConnect_    ( const EndpointType &peer);
+  int           CallReceive_    ( void* pBuf, int len, MsgFlags flags);
+  int           CallSend_       ( const void* pBuf, int len, MsgFlags flags);
 
   //  Blocking Call Helpers ****************************************************
   bool          SetBlockingState_( bool isBlocking);
@@ -308,6 +295,11 @@ public:
   typedef typename  Protocol::Endpoint     EndpointType;
   typedef           BasicSocket<Protocol>  BaseType;
 
+  //  Data Members *************************************************************
+  //  Public for user convenience. May move into utility functions.
+  std::stringstream   m_send_buffer;
+  std::stringstream   m_recv_buffer;
+
   //  Construction *************************************************************
            StreamSocket   ( )                             :
                                  BasicSocket()          { }
@@ -332,9 +324,17 @@ class DatagramSocket :
 //  DISALLOW_COPY_AND_ASSIGN(InitSockets);
 public:
   //  Typedef ******************************************************************
-  typedef           Protocol               ProtocolType;
-  typedef typename  Protocol::Endpoint     EndpointType;
-  typedef           BasicSocket<Protocol>  BaseType;
+  typedef           Protocol                ProtocolType;
+  typedef typename  Protocol::Endpoint      EndpointType;
+  typedef           BasicSocket<Protocol>   BaseType;
+
+  typedef std::vector<char>                 datagram_type;
+  typedef std::queue<datagram_type>         data_queue;
+
+  //  Data Members *************************************************************
+  //  Public for user convenience. May move into utility functions.
+  data_queue   m_send_queue;
+  data_queue   m_recv_queue;
 
   //  Construction *************************************************************
            DatagramSocket ( )                             :
@@ -441,6 +441,20 @@ inline bool BasicSocket<Protocol>::Accept_(BasicSocket &connSocket, EndpointType
 }
 
 //  ****************************************************************************
+template<typename Protocol>
+inline bool BasicSocket<Protocol>::CallAccept_( ThisType &connSocket, EndpointType &peer) 
+{ 
+  connSocket.Close();
+  int size = peer.Size();
+  detail::socketType connDescriptor = 
+      ::accept(descriptor_, peer.Data(), &size);
+  if (detail::k_invalidSocket == connDescriptor)
+    return false; 
+
+  return connSocket.Assign_(connDescriptor);
+}
+
+//  ****************************************************************************
 /// Closes socket connections for all socket types.
 ///
 template<typename Protocol>
@@ -448,6 +462,16 @@ inline void BasicSocket<Protocol>::Close_( )
 { 
   CancelBlockingCall(); // Benign for async mode.
   CallClose_();
+}
+
+//  ****************************************************************************
+template<typename Protocol>
+inline void BasicSocket<Protocol>::CallClose_( ) 
+{ 
+  if (IsValid())
+  { ::closesocket(descriptor_);
+    descriptor_ = detail::k_invalidSocket;
+  }
 }
 
 //  ****************************************************************************
@@ -486,6 +510,13 @@ inline bool BasicSocket<Protocol>::Connect_(const EndpointType &peer)
 }
 
 //  ****************************************************************************
+template<typename Protocol>
+inline bool BasicSocket<Protocol>::CallConnect_( const EndpointType &peer)
+{ 
+  return (::connect(descriptor_, peer.Data(), peer.Size()) != detail::k_socketError);
+}
+
+//  ****************************************************************************
 /// Helper function that handles both the blocking and non-blocking
 /// versions to receive data.
 /// 
@@ -514,6 +545,13 @@ inline int BasicSocket<Protocol>::Receive_(void* pBuf, int len, SocketBase::MsgF
   }
 
   return retVal;
+}
+
+//  ****************************************************************************
+template<typename Protocol>
+inline int BasicSocket<Protocol>::CallReceive_( void* pBuf, int len, SocketBase::MsgFlags flags)
+{ 
+  return ::recv(descriptor_, reinterpret_cast<char*>(pBuf), len, flags);
 }
 
 //  ****************************************************************************
@@ -548,6 +586,13 @@ inline int BasicSocket<Protocol>::Send_(const void* pBuf, int len, SocketBase::M
   }
 
   return (len - count);
+}
+
+//  ****************************************************************************
+template<typename Protocol>
+inline int BasicSocket<Protocol>::CallSend_ ( const void* pBuf, int len, SocketBase::MsgFlags flags)
+{ 
+  return ::send(descriptor_, reinterpret_cast<const char*>(pBuf), len, flags);
 }
 
 //  ****************************************************************************
@@ -591,7 +636,7 @@ inline int BasicSocket<Protocol>::SendPortion_(const void* pBuf, int len, Socket
 template<typename Protocol>
 inline bool BasicSocket<Protocol>::WatchSelect_(int selectEvent)
 {
-  BLASSERT(!IsBlocking());
+//  BLASSERT(!IsBlocking());
 
   SetBlockingState_(true);
   while (IsBlocking())

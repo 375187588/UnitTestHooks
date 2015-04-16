@@ -18,6 +18,14 @@
 namespace cxxhook
 {
 
+using namespace ipc::ip;
+
+typedef std::shared_ptr<Tcp::Socket>            TcpSocketSP;
+typedef std::map<SOCKET, TcpSocketSP>           TcpSocketMap;
+
+typedef std::shared_ptr<Udp::Socket>            UdpSocketSP;
+typedef std::map<SOCKET, UdpSocketSP>           UdpSocketMap;
+
 struct SocketState
 {
   //  Construction *************************************************************
@@ -34,17 +42,9 @@ struct SocketState
   { }
 
   //  ****************************************************************************
-  // TODO: Will be converting this to a set of polymorphic classes based on type.
-  bool is_datagram()                              { return m_type == SOCK_DGRAM; }
-  bool is_stream()                                { return m_type == SOCK_STREAM; }
-  bool is_raw()                                   { return m_type == SOCK_RAW; }
+
 
   //  ****************************************************************************
-  bool is_blocking()
-  {
-    // TODO: complete based on the configuration of the socket.
-    return false;
-  }
 
   //  Data Members *************************************************************
   int                 m_af;
@@ -58,8 +58,6 @@ struct SocketState
   std::stringstream   m_recv_buffer;
 };
 
-typedef std::shared_ptr<SocketState>            SocketStateSptr;
-typedef std::map<SOCKET, SocketStateSptr>       SocketStateMap;
 
 
 } // namespace cxxhook
