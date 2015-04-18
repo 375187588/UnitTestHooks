@@ -280,24 +280,6 @@ int WSAAPI Hook_recv(
   return  is_udp(s)
           ? recvT(get_udp_socket(s), buf, len, flags)
           : recvT(get_tcp_socket(s), buf, len, flags);
-
-  //TcpSocketSP sp_socket = get_tcp_socket(s);
-  //if (!sp_socket)
-  //{
-  //  return set_socket_error(WSAENOTSOCK);
-  //}
-
-  //std::streambuf* pRdBuf = sp_socket->m_recv_buffer.rdbuf();
-  //std::streamsize size   = std::min<std::streamsize>(pRdBuf->in_avail(), len);
-  //if (size < 0)
-  //{
-  //  // TODO: Currently, no calls will block to prevent unit-tests from blocking indefinitely. Support is planned to emulate blocking socket calls.
-  //  return  sp_socket->IsBlocking()
-  //          ? set_socket_error(0)
-  //          : set_socket_error(WSAEWOULDBLOCK);
-  //}
-
-  //return (int)pRdBuf->sgetn(buf, size);
 }
 
 //  ****************************************************************************
@@ -371,22 +353,6 @@ int WSAAPI Hook_send(
   return  is_udp(s)
           ? sendT(get_udp_socket(s), buf, len, flags)
           : sendT(get_tcp_socket(s), buf, len, flags);
-  //if (len < 0)
-  //{
-  //  // TODO: Find out what actually happens when a negative index is passed in for the length.
-  //  return set_socket_error(WSAENOBUFS);
-  //}
-
-  //SocketSP sp_socket = get_socket_state(s);
-  //if (!sp_socket)
-  //{
-  //  return set_socket_error(WSAENOTSOCK);
-  //}
-
-  //// TODO: Work in configuration for how large the write buffers are for the sockets.
-  //std::streambuf* pRdBuf = sp_socket->m_send_buffer.rdbuf();
-  //return (int)pRdBuf->sputn(buf, len);
-  return 0;
 }
 
 //  ****************************************************************************

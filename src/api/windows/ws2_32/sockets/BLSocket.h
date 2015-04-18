@@ -408,11 +408,20 @@ protected:
   int           Send_           ( const void* pBuf, int len, SocketBase::MsgFlags flags);
 
   //  Socket Call Impl Methods *************************************************
-  bool          CallAccept_     ( ThisType &connSocket, EndpointType &peer);
-  void          CallClose_      ( );
-  bool          CallConnect_    ( const EndpointType &peer);
-  int           CallReceive_    ( void* pBuf, int len, MsgFlags flags);
-  int           CallSend_       ( const void* pBuf, int len, MsgFlags flags);
+  virtual 
+  bool OnCallAccept_ ( ThisType &connSocket, EndpointType &peer);
+  
+  virtual 
+  void OnCallClose_  ( );
+
+  virtual 
+  bool OnCallConnect_( const EndpointType &peer);
+
+  virtual 
+  int  OnCallReceive_( void* pBuf, int len, MsgFlags flags) = 0;
+
+  virtual 
+  int  OnCallSend_   ( const void* pBuf, int len, MsgFlags flags) = 0;
 
   //  Blocking Call Helpers ****************************************************
   bool          SetBlockingState_( bool isBlocking);
@@ -424,160 +433,6 @@ protected:
 };
 
 //  ****************************************************************************
-/// Provide functionality to communicate through a stream type socket.
-///
-template<typename Protocol>
-class StreamSocket :
-  public BasicSocket<Protocol>
-{
-// TODO: Add non-copyable
-//  DISALLOW_COPY_AND_ASSIGN(InitSockets);
-public:
-  //  Typedef ******************************************************************
-  typedef           Protocol               ProtocolType;
-  typedef typename  Protocol::Endpoint     EndpointType;
-  typedef           BasicSocket<Protocol>  BaseType;
-
-  //  Data Members *************************************************************
-  //  Public for user convenience. May move into utility functions.
-  std::stringstream   m_send_buffer;
-  std::stringstream   m_recv_buffer;
-
-  //  Construction *************************************************************
-  //  **************************************************************************
-  StreamSocket( )
-    : BasicSocket()          
-  { }
-
-  //  **************************************************************************
-  explicit 
-    StreamSocket( const ProtocolType &protocol) 
-    : BasicSocket(protocol)  
-  { }
-
-  //  **************************************************************************
-  explicit 
-    StreamSocket( const EndpointType &endpoint) 
-    : BasicSocket(endpoint)  
-  { }
-
-  //  **************************************************************************
-  ~StreamSocket( )
-  { }
-};
-
-//  ****************************************************************************
-/// Provide functionality to communicate through a datagram type socket.
-///
-template<typename Protocol>
-class DatagramSocket :
-  public BasicSocket<Protocol>
-{
-// TODO: Add non-copyable
-//  DISALLOW_COPY_AND_ASSIGN(InitSockets);
-public:
-  //  Typedef ******************************************************************
-  typedef           Protocol                ProtocolType;
-  typedef typename  Protocol::Endpoint      EndpointType;
-  typedef           BasicSocket<Protocol>   BaseType;
-
-  typedef std::vector<char>                 datagram_type;
-  typedef std::queue<datagram_type>         data_queue;
-
-  //  Data Members *************************************************************
-  //  Public for user convenience. May move into utility functions.
-  data_queue   m_send_queue;
-  data_queue   m_recv_queue;
-
-  //  Construction *************************************************************
-  //  **************************************************************************
-  DatagramSocket ( )
-    : BasicSocket()
-  { }
-
-  //  **************************************************************************
-  explicit 
-    DatagramSocket( const ProtocolType &protocol) 
-    : BasicSocket(protocol)  
-  { }
-
-  //  **************************************************************************
-  explicit 
-    DatagramSocket( const EndpointType &endpoint) 
-    : BasicSocket(endpoint)  
-  { }
-
-  //  **************************************************************************
-  ~DatagramSocket( )
-  { }
-
-  //  Methods ******************************************************************
-  //  **************************************************************************
-	int ReceiveFrom( void* pBuf, int len, EndpointType &source, MsgFlags flags = 0)
-  { 
-    return ReceiveFrom_(pBuf, len, source, flags);
-  }
-
-  //  **************************************************************************
-	int SendTo( const void* pBuf, int len, EndpointType &destination, MsgFlags flags = 0)
-  { 
-    return SendTo_(pBuf, len, destination, flags);
-  }
-
-protected:
-
-  //  Helper Abstractions ******************************************************
-  int   ReceiveFrom_    ( void* pBuf, int len, EndpointType &source, MsgFlags flags);
-  int   SendTo_         ( const void* pBuf, int len, EndpointType &destination, MsgFlags flags);
-
-  //  Socket Call Impl Methods *************************************************
-  //  **************************************************************************
-  int   CallReceiveFrom_( void* pBuf, size_t len, EndpointType &source, MsgFlags flags)
-  { 
-    // No explicit blocking for unit-tests.
-    if (m_recv_queue.empty())
-    {
-      return error::k_socketWouldBlock;
-    }
-
-    if (!pBuf)
-    {
-      return error::k_invalidArgument;
-    }
-
-    int size = source.Size();
-
-    // Get the datagram and return it to the caller.
-    datagram_type &msg = m_recv_queue.front();
-    m_recv_queue.pop();
-
-    // TODO: Possibly add alternate logic to read from the send queue for the source.
-    memcpy(pBuf, &msg[0], std::min(len, msg.size()));
-
-    return  len < msg.size()
-            ? error::k_socketMsgSize
-            : 0;
-    //return ::recvfrom(descriptor_, 
-    //                  reinterpret_cast<char*>(pBuf), 
-    //                  len, 
-    //                  flags,
-    //                  source.Data(),
-    //                  &size);
-  }
-
-  //  **************************************************************************
-  int CallSendTo_( const void* pBuf, int len, EndpointType &destination, MsgFlags flags)
-  { return ::sendto(descriptor_, 
-                    reinterpret_cast<const char*>(pBuf), 
-                    len, 
-                    flags,
-                    destination.Data(),
-                    destination.Size());
-  }
-};
-
-//  Definitions **************************************************************
-//  ****************************************************************************
 /// Helper function to assign a socket to this object and initialize its state.
 ///
 /// @return		  true on success, false otherwise.
@@ -587,7 +442,7 @@ inline bool BasicSocket<Protocol>::Assign_(detail::socketType socket)
 { 
   if (detail::k_invalidSocket == socket)
   { 
-    Error(error::k_invalidHandle);
+    Error(error::k_badFileHandle);
     return false;
   }
 
@@ -613,7 +468,7 @@ template<typename Protocol>
 inline bool BasicSocket<Protocol>::Accept_(BasicSocket &connSocket, EndpointType &peer) 
 { 
   if (isAsyncIo_)
-    return CallAccept_(connSocket, peer);
+    return OnCallAccept_(connSocket, peer);
   else // Blocking implementation
   { 
     if (IsBlocking())
@@ -622,7 +477,7 @@ inline bool BasicSocket<Protocol>::Accept_(BasicSocket &connSocket, EndpointType
       return false;
     }
 
-    while (!CallAccept_(connSocket, peer))
+    while (!OnCallAccept_(connSocket, peer))
     { 
       if (error::k_socketWouldBlock == Error())
       { 
@@ -638,37 +493,13 @@ inline bool BasicSocket<Protocol>::Accept_(BasicSocket &connSocket, EndpointType
 }
 
 //  ****************************************************************************
-template<typename Protocol>
-inline bool BasicSocket<Protocol>::CallAccept_( ThisType &connSocket, EndpointType &peer) 
-{ 
-  connSocket.Close();
-  int size = peer.Size();
-  detail::socketType connDescriptor = 
-      ::accept(descriptor_, peer.Data(), &size);
-  if (detail::k_invalidSocket == connDescriptor)
-    return false; 
-
-  return connSocket.Assign_(connDescriptor);
-}
-
-//  ****************************************************************************
 /// Closes socket connections for all socket types.
 ///
 template<typename Protocol>
 inline void BasicSocket<Protocol>::Close_( ) 
 { 
   CancelBlockingCall(); // Benign for async mode.
-  CallClose_();
-}
-
-//  ****************************************************************************
-template<typename Protocol>
-inline void BasicSocket<Protocol>::CallClose_( ) 
-{ 
-  if (IsValid())
-  { ::closesocket(descriptor_);
-    descriptor_ = detail::k_invalidSocket;
-  }
+  OnCallClose_();
 }
 
 //  ****************************************************************************
@@ -681,7 +512,7 @@ template<typename Protocol>
 inline bool BasicSocket<Protocol>::Connect_(const EndpointType &peer) 
 { 
   if (isAsyncIo_)
-    return CallConnect_(peer);
+    return OnCallConnect_(peer);
   
   // Blocking implementation
   if (IsBlocking())
@@ -690,7 +521,7 @@ inline bool BasicSocket<Protocol>::Connect_(const EndpointType &peer)
     return false;
   }
 
-  if (CallConnect_(peer))
+  if (OnCallConnect_(peer))
     return true;
 
   if (error::k_socketWouldBlock != Error())
@@ -707,13 +538,6 @@ inline bool BasicSocket<Protocol>::Connect_(const EndpointType &peer)
 }
 
 //  ****************************************************************************
-template<typename Protocol>
-inline bool BasicSocket<Protocol>::CallConnect_( const EndpointType &peer)
-{ 
-  return (::connect(descriptor_, peer.Data(), peer.Size()) != detail::k_socketError);
-}
-
-//  ****************************************************************************
 /// Helper function that handles both the blocking and non-blocking
 /// versions to receive data.
 /// 
@@ -721,7 +545,7 @@ template<typename Protocol>
 inline int BasicSocket<Protocol>::Receive_(void* pBuf, int len, SocketBase::MsgFlags flags) 
 {  
   if (isAsyncIo_)
-    return CallReceive_(pBuf, len, flags);
+    return OnCallReceive_(pBuf, len, flags);
   
   // Blocking implementation
   if (IsBlocking())
@@ -731,7 +555,7 @@ inline int BasicSocket<Protocol>::Receive_(void* pBuf, int len, SocketBase::MsgF
   }
 
   int retVal = 0;
-  while ((retVal = CallReceive_(pBuf, len, flags)) == detail::k_socketError)
+  while ((retVal = OnCallReceive_(pBuf, len, flags)) == detail::k_socketError)
   { 
     if (error::k_socketWouldBlock != Error())
       return detail::k_socketError;
@@ -744,12 +568,6 @@ inline int BasicSocket<Protocol>::Receive_(void* pBuf, int len, SocketBase::MsgF
   return retVal;
 }
 
-//  ****************************************************************************
-template<typename Protocol>
-inline int BasicSocket<Protocol>::CallReceive_( void* pBuf, int len, SocketBase::MsgFlags flags)
-{ 
-  return ::recv(descriptor_, reinterpret_cast<char*>(pBuf), len, flags);
-}
 
 //  ****************************************************************************
 /// Helper function that handles both the blocking and non-blocking
@@ -759,7 +577,7 @@ template<typename Protocol>
 inline int BasicSocket<Protocol>::Send_(const void* pBuf, int len, SocketBase::MsgFlags flags) 
 {  
   if (isAsyncIo_)
-    return CallSend_(pBuf, len, flags);
+    return OnCallSend_(pBuf, len, flags);
   
   // Blocking implementation
   if (IsBlocking())
@@ -786,13 +604,6 @@ inline int BasicSocket<Protocol>::Send_(const void* pBuf, int len, SocketBase::M
 }
 
 //  ****************************************************************************
-template<typename Protocol>
-inline int BasicSocket<Protocol>::CallSend_ ( const void* pBuf, int len, SocketBase::MsgFlags flags)
-{ 
-  return ::send(descriptor_, reinterpret_cast<const char*>(pBuf), len, flags);
-}
-
-//  ****************************************************************************
 /// Changes the blocking state of the socket if possible.
 /// @param 	  isBlocking[in]: The new state to set for the socket.
 /// @return 	The set state is returned.
@@ -814,7 +625,7 @@ template<typename Protocol>
 inline int BasicSocket<Protocol>::SendPortion_(const void* pBuf, int len, SocketBase::MsgFlags flags) 
 {
   int retVal = 0;
-  while ((retVal = CallSend_(pBuf, len, flags)) == detail::k_socketError)
+  while ((retVal = OnCallSend_(pBuf, len, flags)) == detail::k_socketError)
   { 
     if (error::k_socketWouldBlock != Error())
       return detail::k_socketError;
@@ -886,6 +697,239 @@ DWORD err = Error();
 }
 
 //  ****************************************************************************
+template<typename Protocol>
+inline bool BasicSocket<Protocol>::OnCallConnect_( const EndpointType &peer)
+{ 
+  return (::connect(descriptor_, peer.Data(), peer.Size()) != detail::k_socketError);
+}
+
+//  ****************************************************************************
+template<typename Protocol>
+inline bool BasicSocket<Protocol>::OnCallAccept_( ThisType &connSocket, 
+                                                  EndpointType &peer) 
+{ 
+  connSocket.Close();
+  int size = peer.Size();
+  detail::socketType connDescriptor = 
+      ::accept(descriptor_, peer.Data(), &size);
+  if (detail::k_invalidSocket == connDescriptor)
+    return false; 
+
+  return connSocket.Assign_(connDescriptor);
+}
+
+//  ****************************************************************************
+template<typename Protocol>
+inline void BasicSocket<Protocol>::OnCallClose_( ) 
+{ 
+  if (IsValid())
+  { 
+    ::closesocket(descriptor_);
+    descriptor_ = detail::k_invalidSocket;
+  }
+}
+
+
+
+//  ****************************************************************************
+//  ****************************************************************************
+/// Provide functionality to communicate through a stream type socket.
+///
+template<typename Protocol>
+class StreamSocket :
+  public BasicSocket<Protocol>
+{
+// TODO: Add non-copyable
+//  DISALLOW_COPY_AND_ASSIGN(InitSockets);
+public:
+  //  Typedef ******************************************************************
+  typedef           Protocol               ProtocolType;
+  typedef typename  Protocol::Endpoint     EndpointType;
+  typedef           BasicSocket<Protocol>  BaseType;
+
+  //  Construction *************************************************************
+  //  **************************************************************************
+  StreamSocket( )
+    : BasicSocket()          
+  { }
+
+  //  **************************************************************************
+  explicit 
+    StreamSocket( const ProtocolType &protocol) 
+    : BasicSocket(protocol)  
+  { }
+
+  //  **************************************************************************
+  explicit 
+    StreamSocket( const EndpointType &endpoint) 
+    : BasicSocket(endpoint)  
+  { }
+
+  //  **************************************************************************
+  ~StreamSocket( )
+  { }
+
+
+protected:
+  //  Data Members *************************************************************
+  std::stringstream   m_send_buffer;
+  std::stringstream   m_recv_buffer;
+
+  //  Socket Call Impl Methods *************************************************
+  int  OnCallReceive_( void* pBuf, int len, MsgFlags flags);
+  int  OnCallSend_   ( const void* pBuf, int len, MsgFlags flags);
+
+};
+
+
+//  ****************************************************************************
+template<typename Protocol>
+inline 
+int StreamSocket<Protocol>::OnCallReceive_( 
+  void* pBuf, 
+  int len, 
+  SocketBase::MsgFlags flags
+)
+{ 
+  return (int)m_recv_buffer.rdbuf()->sgetn((char*)(pBuf), len);  
+}
+
+//  ****************************************************************************
+template<typename Protocol>
+inline 
+int StreamSocket<Protocol>::OnCallSend_ ( 
+  const void* pBuf, 
+  int len, 
+  SocketBase::MsgFlags flags
+)
+{ 
+  return (int)m_send_buffer.rdbuf()->sputn((char*)(pBuf), len);  
+}
+
+
+
+//  ****************************************************************************
+//  ****************************************************************************
+/// Provide functionality to communicate through a datagram type socket.
+///
+template<typename Protocol>
+class DatagramSocket :
+  public BasicSocket<Protocol>
+{
+// TODO: Add non-copyable
+//  DISALLOW_COPY_AND_ASSIGN(InitSockets);
+public:
+  //  Typedef ******************************************************************
+  typedef           Protocol                ProtocolType;
+  typedef typename  Protocol::Endpoint      EndpointType;
+  typedef           BasicSocket<Protocol>   BaseType;
+
+  typedef std::vector<char>                 datagram_type;
+  typedef std::queue<datagram_type>         data_queue;
+
+  //  Construction *************************************************************
+  //  **************************************************************************
+  DatagramSocket ( )
+    : BasicSocket()
+  { }
+
+  //  **************************************************************************
+  explicit 
+    DatagramSocket( const ProtocolType &protocol) 
+    : BasicSocket(protocol)  
+  { }
+
+  //  **************************************************************************
+  explicit 
+    DatagramSocket( const EndpointType &endpoint) 
+    : BasicSocket(endpoint)  
+  { }
+
+  //  **************************************************************************
+  ~DatagramSocket( )
+  { }
+
+  //  Methods ******************************************************************
+  //  **************************************************************************
+	int ReceiveFrom( void* pBuf, int len, EndpointType &source, MsgFlags flags = 0)
+  { 
+    return ReceiveFrom_(pBuf, len, source, flags);
+  }
+
+  //  **************************************************************************
+	int SendTo( const void* pBuf, int len, EndpointType &destination, MsgFlags flags = 0)
+  { 
+    return SendTo_(pBuf, len, destination, flags);
+  }
+
+protected:
+  //  Data Members *************************************************************
+  data_queue   m_send_queue;
+  data_queue   m_recv_queue;
+
+  //  Helper Abstractions ******************************************************
+  int   ReceiveFrom_    ( void* pBuf, int len, EndpointType &source, MsgFlags flags);
+  int   SendTo_         ( const void* pBuf, int len, EndpointType &destination, MsgFlags flags);
+
+  //  Socket Call Impl Methods *************************************************
+  int  OnCallReceive_( void* pBuf, int len, MsgFlags flags);
+  int  OnCallSend_   ( const void* pBuf, int len, MsgFlags flags);
+
+  //  **************************************************************************
+  int   OnCallReceiveFrom_( void* pBuf, size_t len, EndpointType &source, MsgFlags flags);
+
+  //  **************************************************************************
+  int OnCallSendTo_( const void* pBuf, int len, EndpointType &destination, MsgFlags flags);
+};
+
+//  ****************************************************************************
+template<typename Protocol>
+inline 
+int DatagramSocket<Protocol>::OnCallReceive_( 
+  void* pBuf, 
+  int len, 
+  SocketBase::MsgFlags flags
+)
+{ 
+  if (m_recv_queue.empty())
+  {
+    // TODO: Add an error value if necessary
+    return 0;
+  }
+
+  const datagram_type& msg = m_recv_queue.front();
+  int size = std::min<int>(msg.size(), len);
+  std::memcpy(pBuf, &msg[0], size);
+
+  m_recv_queue.pop();
+
+  if (len < size)
+  {
+    Error(error::k_socketMsgSize);
+    return detail::k_socketError;
+  }
+
+  return size;
+}
+
+//  ****************************************************************************
+template<typename Protocol>
+inline 
+int DatagramSocket<Protocol>::OnCallSend_ ( 
+  const void* pBuf, 
+  int len, 
+  SocketBase::MsgFlags flags
+)
+{ 
+  datagram_type msg(len);
+  std::memcpy(&msg[0], pBuf, len);
+
+  m_recv_queue.push(msg);
+
+  return len;
+}
+
+//  ****************************************************************************
 /// Purpose:	  Helper function that handles both the blocking and non-blocking
 ///             versions to receive socket datagrams from unconnected sources.
 /// 
@@ -896,7 +940,7 @@ inline int DatagramSocket<Protocol>::ReceiveFrom_(void* pBuf,
                                                   MsgFlags flags) 
 { 
   if (isAsyncIo_)
-    return CallReceiveFrom_(pBuf, len, source, flags);
+    return OnCallReceiveFrom_(pBuf, len, source, flags);
 
   // Blocking implementation
   if (IsBlocking())
@@ -906,7 +950,7 @@ inline int DatagramSocket<Protocol>::ReceiveFrom_(void* pBuf,
   }
 
 	int retVal;
-  while ((retVal = CallReceiveFrom_(pBuf, len, source, flags)) == detail::k_socketError)
+  while ((retVal = OnCallReceiveFrom_(pBuf, len, source, flags)) == detail::k_socketError)
 	{
     if (error::k_socketWouldBlock != Error())
       return detail::k_socketError;
@@ -930,7 +974,7 @@ inline int DatagramSocket<Protocol>::SendTo_(const void* pBuf,
                                              MsgFlags flags) 
 { 
   if (isAsyncIo_)
-    return CallSendTo_(pBuf, len, destination, flags);
+    return OnCallSendTo_(pBuf, len, destination, flags);
 
   // Blocking implementation
   if (IsBlocking())
@@ -940,7 +984,7 @@ inline int DatagramSocket<Protocol>::SendTo_(const void* pBuf,
   }
 
 	int retVal;
-  while ((retVal = CallSendTo_(pBuf, len, destination, flags)) == detail::k_socketError)
+  while ((retVal = OnCallSendTo_(pBuf, len, destination, flags)) == detail::k_socketError)
 	{
     if (error::k_socketWouldBlock != Error())
       return detail::k_socketError;
@@ -951,6 +995,66 @@ inline int DatagramSocket<Protocol>::SendTo_(const void* pBuf,
   }
 
 	return retVal; 
+}
+
+
+//  **************************************************************************
+template<typename Protocol>
+inline 
+int DatagramSocket<Protocol>::OnCallReceiveFrom_( 
+  void* pBuf, 
+  size_t len, 
+  EndpointType &source, 
+  MsgFlags flags
+)
+{ 
+  // No explicit blocking for unit-tests.
+  if (m_recv_queue.empty())
+  {
+    return error::k_socketWouldBlock;
+  }
+
+  if (!pBuf)
+  {
+    return error::k_invalidArgument;
+  }
+
+  int size = source.Size();
+
+  // Get the datagram and return it to the caller.
+  datagram_type &msg = m_recv_queue.front();
+  m_recv_queue.pop();
+
+  // TODO: Possibly add alternate logic to read from the send queue for the source.
+  memcpy(pBuf, &msg[0], std::min(len, msg.size()));
+
+  return  len < msg.size()
+          ? error::k_socketMsgSize
+          : 0;
+  //return ::recvfrom(descriptor_, 
+  //                  reinterpret_cast<char*>(pBuf), 
+  //                  len, 
+  //                  flags,
+  //                  source.Data(),
+  //                  &size);
+}
+
+
+//  **************************************************************************
+template<typename Protocol>
+inline 
+int DatagramSocket<Protocol>::OnCallSendTo_( 
+  const void* pBuf, 
+  int len, 
+  EndpointType &destination, 
+  MsgFlags flags
+)
+{ return ::sendto(descriptor_, 
+                  reinterpret_cast<const char*>(pBuf), 
+                  len, 
+                  flags,
+                  destination.Data(),
+                  destination.Size());
 }
 
 } // namespace ipc
