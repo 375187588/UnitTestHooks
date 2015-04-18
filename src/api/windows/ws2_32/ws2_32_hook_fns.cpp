@@ -32,6 +32,61 @@ namespace cxxhook
 
 using namespace ipc;
 
+
+//  ****************************************************************************
+typedef TcpSocketMap::iterator          TcpIterator;
+typedef UdpSocketMap::iterator          UdpIterator;
+
+
+//  ****************************************************************************
+int set_socket_error(int errCode)
+{
+  WSASetLastError(errCode);
+  return  0 == errCode
+          ? 0
+          : SOCKET_ERROR;
+}
+
+//  ****************************************************************************
+int get_socket_error()
+{
+  return WSAGetLastError();
+}
+
+//  ****************************************************************************
+//  Functions to help the search for matching socket state.
+//
+
+//  ****************************************************************************
+template< typename T >
+bool is_accepting(T& item)
+{
+  return item->is_accepting();
+}
+
+//  ****************************************************************************
+template< typename T >
+bool is_connecting(T& item)
+{
+  return item->is_connecting();
+}
+
+//  ****************************************************************************
+template< typename T >
+bool is_listening(T& item)
+{
+  return item->is_listening();
+}
+
+//  ****************************************************************************
+template< typename T >
+bool is_waiting(T& item)
+{
+  return item->is_waiting();
+}
+
+
+
 //  ****************************************************************************
 bool is_udp(SOCKET s)
 {
@@ -86,7 +141,7 @@ SOCKET add_socket_state(UdpSocketSP sp_socket)
 }
 
 //  ****************************************************************************
-void remove_socket_state(SOCKET id)
+int remove_socket_state(SOCKET id)
 {
   if (is_udp(id))
   {
@@ -94,6 +149,7 @@ void remove_socket_state(SOCKET id)
     if (iter != g_udp_sockets.end())
     {
       g_udp_sockets.erase(iter);
+      return 0;
     }  
   }
   else
@@ -102,24 +158,11 @@ void remove_socket_state(SOCKET id)
     if (iter != g_tcp_sockets.end())
     {
       g_tcp_sockets.erase(iter);
-    }    
+      return 0;
+    }   
   }
-}
 
-
-//  ****************************************************************************
-int set_socket_error(int errCode)
-{
-  WSASetLastError(errCode);
-  return  0 == errCode
-          ? 0
-          : SOCKET_ERROR;
-}
-
-//  ****************************************************************************
-int get_socket_error()
-{
-  return WSAGetLastError();
+  return set_socket_error(error::k_socketNotSocket);
 }
 
 //  ****************************************************************************
@@ -132,32 +175,26 @@ SOCKET WSAAPI Hook_socket(
 )
 {
   // Only supporting UDP and TCP socket types.
-  SOCKET s = -1;
   if (SOCK_DGRAM == type)
   {
     UdpSocketSP sp_socket = std::make_shared<Udp::Socket>();
-    s = add_socket_state(sp_socket);
+    return add_socket_state(sp_socket);
   }
   else if (SOCK_STREAM == type)
   {
     TcpSocketSP sp_socket = std::make_shared<Tcp::Socket>();
-    s = add_socket_state(sp_socket);
-  }
-  else
-  {
-    return set_socket_error(WSA_INVALID_PARAMETER);
+    return add_socket_state(sp_socket);
   }
 
-  return s;
+  return set_socket_error(WSA_INVALID_PARAMETER);
 }
 
 //  ****************************************************************************
-int Hook_closesocket(
+int WSAAPI  Hook_closesocket(
   SOCKET s
 )
 {
-  remove_socket_state(s);
-  return 0;
+  return remove_socket_state(s);
 }
 
 //  ****************************************************************************
@@ -176,7 +213,7 @@ int shutdownT(
 }
 
 //  ****************************************************************************
-int Hook_shutdown(
+int WSAAPI Hook_shutdown(
   SOCKET  s,
   int     how
 )
@@ -187,7 +224,21 @@ int Hook_shutdown(
 }
 
 //  ****************************************************************************
-SOCKET Hook_WSASocket(
+SOCKET WSAAPI Hook_WSASocketA(
+  int   af,
+  int   type,
+  int   protocol,
+  LPWSAPROTOCOL_INFO lpProtocolInfo,
+  GROUP g,
+  DWORD dwFlags
+)
+{
+  // TODO: Return and add support for the other parameters, most likely have the berkeley like version call this version instead.
+  return Hook_socket(af, type, protocol);
+}
+
+//  ****************************************************************************
+SOCKET WSAAPI Hook_WSASocketW(
   int   af,
   int   type,
   int   protocol,
@@ -219,7 +270,7 @@ int recvT(
 }
 
 //  ****************************************************************************
-int Hook_recv(
+int WSAAPI Hook_recv(
   SOCKET  s,
   char*   buf,
   int     len,
@@ -250,7 +301,7 @@ int Hook_recv(
 }
 
 //  ****************************************************************************
-int Hook_recvfrom(
+int WSAAPI Hook_recvfrom(
   SOCKET    s,
   char*     buf,
   int       len,
@@ -267,7 +318,7 @@ int Hook_recvfrom(
 
   if (!from)
   {
-    return set_socket_error(error::k_invalidArguement);
+    return set_socket_error(error::k_invalidArgument);
   }
 
   UdpSocketSP sp_socket = get_udp_socket(s);
@@ -310,7 +361,7 @@ int sendT(
 }
 
 //  ****************************************************************************
-int Hook_send(
+int WSAAPI Hook_send(
   SOCKET      s,
   const char* buf,
   int         len,
@@ -339,7 +390,7 @@ int Hook_send(
 }
 
 //  ****************************************************************************
-int Hook_sendto(
+int WSAAPI Hook_sendto(
   SOCKET          s,
   const char*     buf,
   int             len,
@@ -356,7 +407,7 @@ int Hook_sendto(
 
   if (!to)
   {
-    return set_socket_error(error::k_invalidArguement);
+    return set_socket_error(error::k_invalidArgument);
   }
 
   UdpSocketSP sp_socket = get_udp_socket(s);
@@ -367,7 +418,7 @@ int Hook_sendto(
 
   if (tolen != sizeof(unsigned long))
   {
-    return set_socket_error(error::k_invalidArguement);
+    return set_socket_error(error::k_invalidArgument);
   }
 
   Address         address((unsigned long)to->sa_data);
@@ -391,7 +442,7 @@ int getsockoptT(
 }
 
 //  ****************************************************************************
-int Hook_getsockopt(
+int WSAAPI Hook_getsockopt(
   SOCKET  s,
   int     level,
   int     optname,
@@ -406,7 +457,7 @@ int Hook_getsockopt(
 
 //  ****************************************************************************
 template <typename T>
-int setsockoptT(
+int WSAAPI setsockoptT(
   std::shared_ptr<T>  sp_socket,
   int         level,
   int         optname,
@@ -418,7 +469,7 @@ int setsockoptT(
 }
 
 //  ****************************************************************************
-int Hook_setsockopt(
+int WSAAPI Hook_setsockopt(
   SOCKET      s,
   int         level,
   int         optname,
@@ -443,7 +494,7 @@ int ioctlsocketT(
 }
 
 //  ****************************************************************************
-int Hook_ioctlsocket(
+int WSAAPI Hook_ioctlsocket(
   SOCKET  s,
   long    cmd,
   u_long* argp 
@@ -467,7 +518,7 @@ int acceptT(
 }
 
 //  ****************************************************************************
-SOCKET Hook_accept(
+SOCKET WSAAPI Hook_accept(
   SOCKET    s,
   sockaddr *addr,
   int *     addrlen
@@ -479,7 +530,7 @@ SOCKET Hook_accept(
 }
 
 //  ****************************************************************************
-SOCKET Hook_WSAAccept(
+SOCKET WSAAPI Hook_WSAAccept(
   SOCKET          s,
   sockaddr *      addr,
   LPINT           addrlen,
@@ -505,12 +556,12 @@ int bindT(
 
   if (!name)
   {
-    return set_socket_error(error::k_invalidArguement);
+    return set_socket_error(error::k_invalidArgument);
   }
 
   if (namelen != sizeof(unsigned long))
   {
-    return set_socket_error(error::k_invalidArguement);
+    return set_socket_error(error::k_invalidArgument);
   }
 
   ip::Address       addr((unsigned long)name);
@@ -520,7 +571,7 @@ int bindT(
 }
 
 //  ****************************************************************************
-int Hook_bind(
+int WSAAPI Hook_bind(
   SOCKET          s,
   const sockaddr* name,
   int             namelen
@@ -546,12 +597,12 @@ int connectT(
 
   if (!name)
   {
-    return set_socket_error(error::k_invalidArguement);
+    return set_socket_error(error::k_invalidArgument);
   }
 
   if (namelen != sizeof(unsigned long))
   {
-    return set_socket_error(error::k_invalidArguement);
+    return set_socket_error(error::k_invalidArgument);
   }
 
   ip::Address       addr((unsigned long)name);
@@ -561,7 +612,7 @@ int connectT(
 }
 
 //  ****************************************************************************
-int Hook_connect(
+int WSAAPI Hook_connect(
   SOCKET          s,
   const sockaddr* name,
   int             namelen
@@ -588,7 +639,7 @@ int listenT(
 }
 
 //  ****************************************************************************
-int Hook_listen(
+int WSAAPI Hook_listen(
   SOCKET  s,
   int     backlog
 )
@@ -599,7 +650,7 @@ int Hook_listen(
 }
 
 //  ****************************************************************************
-int Hook_select(
+int WSAAPI Hook_select(
   int             nfds,
   fd_set *        readfds,
   fd_set *        writefds,
@@ -612,7 +663,7 @@ int Hook_select(
 
 //  Asynchronous ***************************************************************
 //  ****************************************************************************
-BOOL Hook_AcceptEx(
+BOOL WSAAPI Hook_AcceptEx(
   SOCKET        sListen,
   SOCKET        sAccept,
   PVOID         lpOutputBuffer,
@@ -627,7 +678,7 @@ BOOL Hook_AcceptEx(
 }
 
 //  ****************************************************************************
-int Hook_WSAAsyncSelect(
+int WSAAPI Hook_WSAAsyncSelect(
   SOCKET        s,
   HWND          hWnd,
   unsigned int  wMsg,
@@ -638,7 +689,7 @@ int Hook_WSAAsyncSelect(
 }
 
 //  ****************************************************************************
-int Hook_WSACancelAsyncRequest(
+int WSAAPI Hook_WSACancelAsyncRequest(
   HANDLE hAsyncTaskHandle
 )
 {
@@ -646,7 +697,7 @@ int Hook_WSACancelAsyncRequest(
 }
 
 //  ****************************************************************************
-int Hook_WSAConnect(
+int WSAAPI Hook_WSAConnect(
   SOCKET          s,
   const sockaddr* name,
   int             namelen,
@@ -674,7 +725,7 @@ BOOL PASCAL Hook_ConnectEx(
 }
 
 //  ****************************************************************************
-BOOL Hook_DisconnectEx(
+BOOL WSAAPI Hook_DisconnectEx(
   SOCKET        hSOCKET,
   LPOVERLAPPED  lpOverlapped,
   DWORD         dwFlags,
@@ -697,7 +748,7 @@ BOOL WSAAPI Hook_WSAGetOverlappedResult(
 }
 
 //  ****************************************************************************
-int Hook_WSARecv(
+int WSAAPI Hook_WSARecv(
   SOCKET    s,
   LPWSABUF  lpBuffers,
   DWORD     dwBufferCount,
@@ -711,7 +762,7 @@ int Hook_WSARecv(
 }
 
 //  ****************************************************************************
-int Hook_WSARecvDisconnect(
+int WSAAPI Hook_WSARecvDisconnect(
   SOCKET    s,
   LPWSABUF  lpInboundDisconnectData
 )
@@ -731,7 +782,7 @@ int PASCAL FAR Hook_WSARecvEx(
 }
 
 //  ****************************************************************************
-int Hook_WSARecvFrom(
+int WSAAPI Hook_WSARecvFrom(
   SOCKET      s,
   LPWSABUF    lpBuffers,
   DWORD       dwBufferCount,
@@ -747,7 +798,7 @@ int Hook_WSARecvFrom(
 }
 
 //  ****************************************************************************
-int Hook_WSASend(
+int WSAAPI Hook_WSASend(
   SOCKET    s,
   LPWSABUF  lpBuffers,
   DWORD     dwBufferCount,
@@ -761,7 +812,7 @@ int Hook_WSASend(
 }
 
 //  ****************************************************************************
-int Hook_WSASendTo(
+int WSAAPI Hook_WSASendTo(
   SOCKET          s,
   LPWSABUF        lpBuffers,
   DWORD           dwBufferCount,
@@ -777,7 +828,7 @@ int Hook_WSASendTo(
 }
 
 //  ****************************************************************************
-int Hook_WSASendDisconnect(
+int WSAAPI Hook_WSASendDisconnect(
   SOCKET    s,
   LPWSABUF  lpOutboundDisconnectData
 )
@@ -786,7 +837,7 @@ int Hook_WSASendDisconnect(
 }
 
 //  ****************************************************************************
-int Hook_WSAIoctl(
+int WSAAPI Hook_WSAIoctl(
   SOCKET    s,
   DWORD     dwIoControlCode,
   LPVOID    lpvInBuffer,
@@ -803,7 +854,7 @@ int Hook_WSAIoctl(
 
 //  WSA Init/Term Calls ********************************************************
 //  ****************************************************************************
-int Hook_WSAStartup(
+int WSAAPI Hook_WSAStartup(
   WORD wVersionRequested,
   LPWSADATA lpWSAData
 )
@@ -812,20 +863,20 @@ int Hook_WSAStartup(
 }
 
 //  ****************************************************************************
-int Hook_WSACleanup(void)
+int WSAAPI Hook_WSACleanup(void)
 {
   return 0;
 }
 
 //  WSAEvent Related Calls *****************************************************
 //  ****************************************************************************
-WSAEVENT Hook_WSACreateEvent(void)
+WSAEVENT WSAAPI Hook_WSACreateEvent(void)
 {
   return 0;
 }
 
 //  ****************************************************************************
-BOOL Hook_WSACloseEvent(
+BOOL WSAAPI Hook_WSACloseEvent(
   WSAEVENT hEvent
 )
 {
@@ -833,7 +884,7 @@ BOOL Hook_WSACloseEvent(
 }
 
 //  ****************************************************************************
-int Hook_WSAEventSelect(
+int WSAAPI Hook_WSAEventSelect(
   SOCKET s,
   WSAEVENT hEventObject,
   long lNetworkEvents
@@ -843,7 +894,7 @@ int Hook_WSAEventSelect(
 }
 
 //  ****************************************************************************
-BOOL Hook_WSAResetEvent(
+BOOL WSAAPI Hook_WSAResetEvent(
   WSAEVENT hEvent
 )
 {
@@ -851,7 +902,7 @@ BOOL Hook_WSAResetEvent(
 }
 
 //  ****************************************************************************
-BOOL Hook_WSASetEvent(
+BOOL WSAAPI Hook_WSASetEvent(
   WSAEVENT hEvent
 )
 {
@@ -859,7 +910,7 @@ BOOL Hook_WSASetEvent(
 }
 
 //  ****************************************************************************
-DWORD Hook_WSAWaitForMultipleEvents(
+DWORD WSAAPI Hook_WSAWaitForMultipleEvents(
   DWORD cEvents,
   const WSAEVENT *lphEvents,
   BOOL fWaitAll,
@@ -902,7 +953,7 @@ hostent* FAR Hook_gethostbyname(
 }
 
 //  ****************************************************************************
-int Hook_gethostname(
+int WSAAPI Hook_gethostname(
   char*,
   int
 )
@@ -920,7 +971,7 @@ int WSAAPI Hook_GetHostNameW(
 }
 
 //  ****************************************************************************
-int Hook_getpeername(
+int WSAAPI Hook_getpeername(
   SOCKET s,
   sockaddr*,
   int *namelen
@@ -930,7 +981,7 @@ int Hook_getpeername(
 }
 
 //  ****************************************************************************
-int Hook_getsockname(
+int WSAAPI Hook_getsockname(
   SOCKET s,
   sockaddr*,
   int *namelen
@@ -941,13 +992,13 @@ int Hook_getsockname(
 
 //  Error Handling *************************************************************
 //  ****************************************************************************
-int Hook_WSAGetLastError(void)
+int WSAAPI Hook_WSAGetLastError(void)
 {
   return get_socket_error();
 }
 
 //  ****************************************************************************
-void Hook_WSASetLastError(
+void WSAAPI Hook_WSASetLastError(
   int iError
 )
 {

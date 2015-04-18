@@ -35,60 +35,61 @@ UdpSocketSP get_udp_socket(SOCKET sock);
 
 //  Function Pointers for Supported Library Hooks ****************************
 
-typedef SOCKET  (*pfn_accept)           (SOCKET, sockaddr*, int *);
-typedef BOOL    (*pfn_AcceptEx)         (SOCKET,SOCKET,PVOID,DWORD,DWORD,DWORD,LPDWORD,LPOVERLAPPED);
-typedef int     (*pfn_bind)             (SOCKET,const sockaddr*,int);
-typedef int     (*pfn_closesocket)      (SOCKET);
-typedef int     (*pfn_connect)          (SOCKET,const sockaddr*,int);
+typedef SOCKET  (WSAAPI *pfn_accept)           (SOCKET, sockaddr*, int *);
+typedef BOOL    (WSAAPI *pfn_AcceptEx)         (SOCKET,SOCKET,PVOID,DWORD,DWORD,DWORD,LPDWORD,LPOVERLAPPED);
+typedef int     (WSAAPI *pfn_bind)             (SOCKET,const sockaddr*,int);
+typedef int     (WSAAPI  *pfn_closesocket)      (SOCKET);
+typedef int     (WSAAPI *pfn_connect)          (SOCKET,const sockaddr*,int);
 typedef BOOL    (PASCAL *pfn_ConnectEx) (SOCKET,const sockaddr *,int,PVOID,DWORD,LPDWORD,LPOVERLAPPED);
-typedef BOOL    (*pfn_DisconnectEx)     (SOCKET,LPOVERLAPPED,DWORD,DWORD);
+typedef BOOL    (WSAAPI *pfn_DisconnectEx)     (SOCKET,LPOVERLAPPED,DWORD,DWORD);
 typedef int     (WSAAPI *pfn_getaddrinfo)(PCSTR,PCSTR,const ADDRINFOA *,PADDRINFOA *);
 typedef int     (WSAAPI *pfn_GetAddrInfoW)(PCWSTR,PCWSTR,const ADDRINFOW *,PADDRINFOW *);
 typedef hostent*(FAR *pfn_gethostbyname)(const char *);
 
-typedef int     (*pfn_gethostname)      (char*,int);
+typedef int     (WSAAPI *pfn_gethostname)      (char*,int);
 typedef int     (WSAAPI *pfn_GetHostNameW)(PWSTR*,int);
-typedef int     (*pfn_getpeername)      (SOCKET,sockaddr*,int *);
-typedef int     (*pfn_getsockname)      (SOCKET,sockaddr*,int *);
-typedef int     (*pfn_getsockopt)       (SOCKET,int,int,char*,int*);
-typedef int     (*pfn_ioctlsocket)      (SOCKET,long,u_long*);
-typedef int     (*pfn_listen)           (SOCKET,int);
-typedef int     (*pfn_recv)             (SOCKET,char*,int,int);
-typedef int     (*pfn_recvfrom)         (SOCKET,char*,int,int,sockaddr*,int*);
-typedef int     (*pfn_select)           (int,fd_set*,fd_set*,fd_set*,const timeval*);
+typedef int     (WSAAPI *pfn_getpeername)      (SOCKET,sockaddr*,int *);
+typedef int     (WSAAPI *pfn_getsockname)      (SOCKET,sockaddr*,int *);
+typedef int     (WSAAPI *pfn_getsockopt)       (SOCKET,int,int,char*,int*);
+typedef int     (WSAAPI *pfn_ioctlsocket)      (SOCKET,long,u_long*);
+typedef int     (WSAAPI *pfn_listen)           (SOCKET,int);
+typedef int     (WSAAPI *pfn_recv)             (SOCKET,char*,int,int);
+typedef int     (WSAAPI *pfn_recvfrom)         (SOCKET,char*,int,int,sockaddr*,int*);
+typedef int     (WSAAPI *pfn_select)           (int,fd_set*,fd_set*,fd_set*,const timeval*);
 
-typedef int     (*pfn_send)             (SOCKET,const char*,int,int);
-typedef int     (*pfn_sendto)           (SOCKET,const char*,int,int,const sockaddr*,int);
-typedef int     (*pfn_setsockopt)       (SOCKET,int,int,const char*,int);
-typedef int     (*pfn_shutdown)         (SOCKET,int);
+typedef int     (WSAAPI *pfn_send)             (SOCKET,const char*,int,int);
+typedef int     (WSAAPI *pfn_sendto)           (SOCKET,const char*,int,int,const sockaddr*,int);
+typedef int     (WSAAPI *pfn_setsockopt)       (SOCKET,int,int,const char*,int);
+typedef int     (WSAAPI *pfn_shutdown)         (SOCKET,int);
 typedef SOCKET  (WSAAPI *pfn_socket)    (int,int,int);
-typedef SOCKET  (*pfn_WSAAccept)        (SOCKET,sockaddr*,LPINT,LPCONDITIONPROC,DWORD_PTR);
-typedef int     (*pfn_WSAAsyncSelect)   (SOCKET,HWND,unsigned int,long);
-typedef int     (*pfn_WSACancelAsyncRequest)(HANDLE);
-typedef int     (*pfn_WSACleanup)       (void);
-typedef BOOL    (*pfn_WSACloseEvent)    (WSAEVENT);
+typedef SOCKET  (WSAAPI *pfn_WSAAccept)        (SOCKET,sockaddr*,LPINT,LPCONDITIONPROC,DWORD_PTR);
+typedef int     (WSAAPI *pfn_WSAAsyncSelect)   (SOCKET,HWND,unsigned int,long);
+typedef int     (WSAAPI *pfn_WSACancelAsyncRequest)(HANDLE);
+typedef int     (WSAAPI *pfn_WSACleanup)       (void);
+typedef BOOL    (WSAAPI *pfn_WSACloseEvent)    (WSAEVENT);
 
-typedef int     (*pfn_WSAConnect)       (SOCKET,const sockaddr*,int,LPWSABUF,LPWSABUF,LPQOS,LPQOS);
-typedef WSAEVENT(*pfn_WSACreateEvent)   (void);
-typedef int     (*pfn_WSADuplicateSocket)(SOCKET,DWORD,LPWSAPROTOCOL_INFO);
-typedef int     (*pfn_WSAEventSelect)   (SOCKET,WSAEVENT,long);
-typedef int     (*pfn_WSAGetLastError)  (void);
+typedef int     (WSAAPI *pfn_WSAConnect)       (SOCKET,const sockaddr*,int,LPWSABUF,LPWSABUF,LPQOS,LPQOS);
+typedef WSAEVENT(WSAAPI *pfn_WSACreateEvent)   (void);
+typedef int     (WSAAPI *pfn_WSADuplicateSocket)(SOCKET,DWORD,LPWSAPROTOCOL_INFO);
+typedef int     (WSAAPI *pfn_WSAEventSelect)   (SOCKET,WSAEVENT,long);
+typedef int     (WSAAPI *pfn_WSAGetLastError)  (void);
 typedef BOOL    (WSAAPI *pfn_WSAGetOverlappedResult)(SOCKET,LPWSAOVERLAPPED,LPDWORD,BOOL,LPDWORD);
-typedef int     (*pfn_WSAIoctl)         (SOCKET,DWORD,LPVOID,DWORD,LPVOID,DWORD,LPDWORD,LPWSAOVERLAPPED,LPWSAOVERLAPPED_COMPLETION_ROUTINE);
-typedef int     (*pfn_WSARecv)          (SOCKET,LPWSABUF,DWORD,LPDWORD,LPDWORD,LPWSAOVERLAPPED,LPWSAOVERLAPPED_COMPLETION_ROUTINE);
-typedef int     (*pfn_WSARecvDisconnect)(SOCKET,LPWSABUF);
+typedef int     (WSAAPI *pfn_WSAIoctl)         (SOCKET,DWORD,LPVOID,DWORD,LPVOID,DWORD,LPDWORD,LPWSAOVERLAPPED,LPWSAOVERLAPPED_COMPLETION_ROUTINE);
+typedef int     (WSAAPI *pfn_WSARecv)          (SOCKET,LPWSABUF,DWORD,LPDWORD,LPDWORD,LPWSAOVERLAPPED,LPWSAOVERLAPPED_COMPLETION_ROUTINE);
+typedef int     (WSAAPI *pfn_WSARecvDisconnect)(SOCKET,LPWSABUF);
 typedef int     (PASCAL FAR *pfn_WSARecvEx)(SOCKET,char*,int,int*);
 
-typedef int     (*pfn_WSARecvFrom)      (SOCKET,LPWSABUF,DWORD,LPDWORD,LPDWORD,sockaddr*,LPINT,LPWSAOVERLAPPED,LPWSAOVERLAPPED_COMPLETION_ROUTINE);
-typedef BOOL    (*pfn_WSAResetEvent)    (WSAEVENT);
-typedef int     (*pfn_WSASend)          (SOCKET,LPWSABUF,DWORD,LPDWORD,DWORD,LPWSAOVERLAPPED,LPWSAOVERLAPPED_COMPLETION_ROUTINE);
-typedef int     (*pfn_WSASendDisconnect)(SOCKET,LPWSABUF);
-typedef int     (*pfn_WSASendTo)        (SOCKET,LPWSABUF,DWORD,LPDWORD,DWORD,const sockaddr*,int,LPWSAOVERLAPPED,LPWSAOVERLAPPED_COMPLETION_ROUTINE);
-typedef BOOL    (*pfn_WSASetEvent)      (WSAEVENT);
-typedef void    (*pfn_WSASetLastError)  (int);
-typedef SOCKET  (*pfn_WSASocket)        (int,int,int,LPWSAPROTOCOL_INFO,GROUP,DWORD);
-typedef int     (*pfn_WSAStartup)       (WORD,LPWSADATA);
-typedef DWORD   (*pfn_WSAWaitForMultipleEvents)(DWORD,const WSAEVENT*,BOOL,DWORD,BOOL);
+typedef int     (WSAAPI *pfn_WSARecvFrom)      (SOCKET,LPWSABUF,DWORD,LPDWORD,LPDWORD,sockaddr*,LPINT,LPWSAOVERLAPPED,LPWSAOVERLAPPED_COMPLETION_ROUTINE);
+typedef BOOL    (WSAAPI *pfn_WSAResetEvent)    (WSAEVENT);
+typedef int     (WSAAPI *pfn_WSASend)          (SOCKET,LPWSABUF,DWORD,LPDWORD,DWORD,LPWSAOVERLAPPED,LPWSAOVERLAPPED_COMPLETION_ROUTINE);
+typedef int     (WSAAPI *pfn_WSASendDisconnect)(SOCKET,LPWSABUF);
+typedef int     (WSAAPI *pfn_WSASendTo)        (SOCKET,LPWSABUF,DWORD,LPDWORD,DWORD,const sockaddr*,int,LPWSAOVERLAPPED,LPWSAOVERLAPPED_COMPLETION_ROUTINE);
+typedef BOOL    (WSAAPI *pfn_WSASetEvent)      (WSAEVENT);
+typedef void    (WSAAPI *pfn_WSASetLastError)  (int);
+typedef SOCKET  (WSAAPI *pfn_WSASocketA)       (int,int,int,LPWSAPROTOCOL_INFO,GROUP,DWORD);
+typedef SOCKET  (WSAAPI *pfn_WSASocketW)       (int,int,int,LPWSAPROTOCOL_INFO,GROUP,DWORD);
+typedef int     (WSAAPI *pfn_WSAStartup)       (WORD,LPWSADATA);
+typedef DWORD   (WSAAPI *pfn_WSAWaitForMultipleEvents)(DWORD,const WSAEVENT*,BOOL,DWORD,BOOL);
 
 //  ****************************************************************************
 /// Combines a function name with a function ptr.
@@ -120,13 +121,13 @@ struct LibraryFunction
 //  ****************************************************************************
 //  Hook Function Declarations *************************************************
 
-SOCKET Hook_accept(
+SOCKET WSAAPI Hook_accept(
   SOCKET,
   sockaddr *addr,
   int *addrlen
 );
 
-BOOL Hook_AcceptEx(
+BOOL WSAAPI Hook_AcceptEx(
   SOCKET sListenSocket,
   SOCKET sAcceptSocket,
   PVOID lpOutputBuffer,
@@ -137,17 +138,17 @@ BOOL Hook_AcceptEx(
   LPOVERLAPPED lpOverlapped
 );
 
-int Hook_bind(
+int WSAAPI Hook_bind(
   SOCKET,
   const sockaddr*,
   int
 );
 
-int Hook_closesocket(
+int WSAAPI Hook_closesocket(
   SOCKET s
 );
 
-int Hook_connect(
+int WSAAPI Hook_connect(
   SOCKET,
   const sockaddr*,
   int
@@ -163,7 +164,7 @@ BOOL PASCAL Hook_ConnectEx(
   LPOVERLAPPED lpOverlapped
 );
 
-BOOL Hook_DisconnectEx(
+BOOL WSAAPI Hook_DisconnectEx(
   SOCKET hSocket,
   LPOVERLAPPED lpOverlapped,
   DWORD dwFlags,
@@ -188,7 +189,7 @@ hostent* FAR Hook_gethostbyname(
   const char *name
 );
 
-int Hook_gethostname(
+int WSAAPI Hook_gethostname(
   char*,
   int
 );
@@ -198,19 +199,19 @@ int WSAAPI Hook_GetHostNameW(
   int
 );
 
-int Hook_getpeername(
+int WSAAPI Hook_getpeername(
   SOCKET,
   sockaddr*,
   int *namelen
 );
 
-int Hook_getsockname(
+int WSAAPI Hook_getsockname(
   SOCKET,
   sockaddr*,
   int *namelen
 );
 
-int Hook_getsockopt(
+int WSAAPI Hook_getsockopt(
   SOCKET,
   int,
   int,
@@ -218,25 +219,25 @@ int Hook_getsockopt(
   int*
 );
 
-int Hook_ioctlsocket(
+int WSAAPI Hook_ioctlsocket(
   SOCKET,
   long,
   u_long*
 );
 
-int Hook_listen(
+int WSAAPI Hook_listen(
   SOCKET,
   int backlog
 );
 
-int Hook_recv(
+int WSAAPI Hook_recv(
   SOCKET,
   char*,
   int,
   int
 );
 
-int Hook_recvfrom(
+int WSAAPI Hook_recvfrom(
   SOCKET,
   char*,
   int,
@@ -245,7 +246,7 @@ int Hook_recvfrom(
   int *fromlen
 );
 
-int Hook_select(
+int WSAAPI Hook_select(
   int nfds,
   fd_set *readfds,
   fd_set *writefds,
@@ -253,14 +254,14 @@ int Hook_select(
   const timeval *timeout
 );
 
-int Hook_send(
+int WSAAPI Hook_send(
   SOCKET,
   const char*,
   int,
   int
 );
 
-int Hook_sendto(
+int WSAAPI Hook_sendto(
   SOCKET,
   const char*,
   int,
@@ -269,7 +270,7 @@ int Hook_sendto(
   int tolen
 );
 
-int Hook_setsockopt(
+int WSAAPI Hook_setsockopt(
   SOCKET,
   int,
   int,
@@ -277,7 +278,7 @@ int Hook_setsockopt(
   int optlen
 );
 
-int Hook_shutdown(
+int WSAAPI Hook_shutdown(
   SOCKET,
   int how
 );
@@ -288,7 +289,7 @@ SOCKET WSAAPI Hook_socket(
   int protocol
 );
 
-SOCKET Hook_WSAAccept(
+SOCKET WSAAPI Hook_WSAAccept(
   SOCKET,
   sockaddr *addr,
   LPINT addrlen,
@@ -296,24 +297,24 @@ SOCKET Hook_WSAAccept(
   DWORD_PTR dwCallbackData
 );
 
-int Hook_WSAAsyncSelect(
+int WSAAPI Hook_WSAAsyncSelect(
   SOCKET,
   HWND hWnd,
   unsigned int wMsg,
   long lEvent
 );
 
-int Hook_WSACancelAsyncRequest(
+int WSAAPI Hook_WSACancelAsyncRequest(
   HANDLE hAsyncTaskHandle
 );
 
-int Hook_WSACleanup(void);
+int WSAAPI Hook_WSACleanup(void);
 
-BOOL Hook_WSACloseEvent(
+BOOL WSAAPI Hook_WSACloseEvent(
   WSAEVENT hEvent
 );
 
-int Hook_WSAConnect(
+int WSAAPI Hook_WSAConnect(
   SOCKET,
   const sockaddr*,
   int,
@@ -323,7 +324,7 @@ int Hook_WSAConnect(
   LPQOS lpGQOS
 );
 
-WSAEVENT Hook_WSACreateEvent(void);
+WSAEVENT WSAAPI Hook_WSACreateEvent(void);
 
 int Hook_WSADuplicateSocket(
   SOCKET,
@@ -331,13 +332,13 @@ int Hook_WSADuplicateSocket(
   LPWSAPROTOCOL_INFO lpProtocolInfo
 );
 
-int Hook_WSAEventSelect(
+int WSAAPI Hook_WSAEventSelect(
   SOCKET,
   WSAEVENT hEventObject,
   long lNetworkEvents
 );
 
-int Hook_WSAGetLastError(void);
+int WSAAPI Hook_WSAGetLastError(void);
 
 BOOL WSAAPI Hook_WSAGetOverlappedResult(
   SOCKET,
@@ -347,7 +348,7 @@ BOOL WSAAPI Hook_WSAGetOverlappedResult(
   LPDWORD lpdwFlags
 );
 
-int Hook_WSAIoctl(
+int WSAAPI Hook_WSAIoctl(
   SOCKET,
   DWORD dwIoControlCode,
   LPVOID lpvInBuffer,
@@ -359,7 +360,7 @@ int Hook_WSAIoctl(
   LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
 );
 
-int Hook_WSARecv(
+int WSAAPI Hook_WSARecv(
   SOCKET,
   LPWSABUF lpBuffers,
   DWORD dwBufferCount,
@@ -369,7 +370,7 @@ int Hook_WSARecv(
   LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
 );
 
-int Hook_WSARecvDisconnect(
+int WSAAPI Hook_WSARecvDisconnect(
   SOCKET,
   LPWSABUF lpInboundDisconnectData
 );
@@ -381,7 +382,7 @@ int PASCAL FAR Hook_WSARecvEx(
   int *flags
 );
 
-int Hook_WSARecvFrom(
+int WSAAPI Hook_WSARecvFrom(
   SOCKET,
   LPWSABUF lpBuffers,
   DWORD dwBufferCount,
@@ -393,11 +394,11 @@ int Hook_WSARecvFrom(
   LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
 );
 
-BOOL Hook_WSAResetEvent(
+BOOL WSAAPI Hook_WSAResetEvent(
   WSAEVENT hEvent
 );
 
-int Hook_WSASend(
+int WSAAPI Hook_WSASend(
   SOCKET,
   LPWSABUF lpBuffers,
   DWORD dwBufferCount,
@@ -407,12 +408,12 @@ int Hook_WSASend(
   LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
 );
 
-int Hook_WSASendDisconnect(
+int WSAAPI Hook_WSASendDisconnect(
   SOCKET,
   LPWSABUF lpOutboundDisconnectData
 );
 
-int Hook_WSASendTo(
+int WSAAPI Hook_WSASendTo(
   SOCKET,
   LPWSABUF lpBuffers,
   DWORD dwBufferCount,
@@ -424,15 +425,15 @@ int Hook_WSASendTo(
   LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
 );
 
-BOOL Hook_WSASetEvent(
+BOOL WSAAPI Hook_WSASetEvent(
   WSAEVENT hEvent
 );
 
-void Hook_WSASetLastError(
+void WSAAPI Hook_WSASetLastError(
   int iError
 );
 
-SOCKET Hook_WSASocket(
+SOCKET WSAAPI Hook_WSASocketA(
   int af,
   int type,
   int protocol,
@@ -441,12 +442,21 @@ SOCKET Hook_WSASocket(
   DWORD dwFlags
 );
 
-int Hook_WSAStartup(
+SOCKET WSAAPI Hook_WSASocketW(
+  int af,
+  int type,
+  int protocol,
+  LPWSAPROTOCOL_INFO lpProtocolInfo,
+  GROUP g,
+  DWORD dwFlags
+);
+
+int WSAAPI Hook_WSAStartup(
   WORD wVersionRequested,
   LPWSADATA lpWSAData
 );
 
-DWORD Hook_WSAWaitForMultipleEvents(
+DWORD WSAAPI Hook_WSAWaitForMultipleEvents(
   DWORD cEvents,
   const WSAEVENT *lphEvents,
   BOOL fWaitAll,

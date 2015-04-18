@@ -118,7 +118,7 @@ inline const char* inet_ntop(int af,
   }
   else if (k_socketError == result)
   {
-    status = cxxhook::error::k_invalidArguement;
+    status = cxxhook::error::k_invalidArgument;
   }
 
   return result == k_socketError ? 0 : dest;
@@ -196,7 +196,7 @@ inline int inet_pton(int af,
   if (k_socketError != result)
     SetLastSocketError(cxxhook::k_noError);
   else if (k_socketError == result)
-    status = cxxhook::error::k_invalidArguement;
+    status = cxxhook::error::k_invalidArgument;
 
   return result == k_socketError ? -1 : 1;
 #else 

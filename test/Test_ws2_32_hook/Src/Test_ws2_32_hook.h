@@ -32,6 +32,7 @@
 #include "../../../../src/api/windows/WS2_32/WS2_32.h"
 
 using namespace cxxhook;
+using namespace cxxhook::ipc;
 
 //  ****************************************************************************
 /// Test_WS2_32_hook Test Suite class.
@@ -49,18 +50,20 @@ public:
   // setUp will be called before each test case in order to setup common fixtures.
   virtual void setUp()
   {
-    // TODO: Add common fixture setup code if any exists.
+    sut = std::make_shared<SUT>();
+    sut->hook();
   }
  
   // tearDown will be called after each test case to clean up common resources.
   virtual void tearDown()
   {
-    // TODO: Add common fixture teardown code if any exists.
+    sut->unhook();
   }
 
 protected:
   // Test Suite Data ***********************************************************
   typedef cxxhook::WS2_32                                   SUT;
+  std::shared_ptr<SUT>      sut;
 
 
   // Creator Methods ***********************************************************
@@ -68,16 +71,120 @@ protected:
 
 public:
   // Test Cases ****************************************************************
-  // TODO: Add a new function for each unique test to be performed in this suite. 
-  void TestCase1(void);
+  void Test_socket_tcp(void);
+  void Test_socket_udp(void);
+  void Test_socket_raw(void);
+
+  void Test_closesocket_tcp(void);
+  void Test_closesocket_udp(void);
+  void Test_closesocket_no_socket(void);
+
+  void Test_shutdown(void);
+  void Test_shutdown_no_socket(void);
+
 
 };
 
 //  ****************************************************************************
-void Test_WS2_32_hook::TestCase1(void)
+void Test_WS2_32_hook::Test_socket_tcp(void)
 {
-  // TODO: Implement Single Test Case.
-  // TODO: The implementation can also be placed in a cpp file if desired.
+  // SUT
+  SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+  // Verify
+  TS_ASSERT(sock != 0);
+  TS_ASSERT_DIFFERS((sock % 2), 0);
+
+  TcpSocketSP tcpSock = sut->get_tcp_socket_state(sock);
+  TS_ASSERT_EQUALS(!tcpSock, false);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_socket_udp(void)
+{
+  // SUT
+  SOCKET sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+  // Verify
+  TS_ASSERT(sock != 0);
+  TS_ASSERT_EQUALS((sock % 2), 0);
+
+  UdpSocketSP udpSock = sut->get_udp_socket_state(sock);
+  TS_ASSERT_EQUALS(!udpSock, false);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_socket_raw(void)
+{
+  // SUT
+  SOCKET sock = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
+
+  // Verify
+  TS_ASSERT_EQUALS(sock, -1);
+  TS_ASSERT_EQUALS(WSA_INVALID_PARAMETER, WSAGetLastError());
+
+  TcpSocketSP tcpSock = sut->get_tcp_socket_state(sock);
+  TS_ASSERT(!tcpSock);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_closesocket_tcp(void)
+{
+  SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+  // SUT
+  int result = closesocket(sock);
+
+  TS_ASSERT_EQUALS(result, 0);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_closesocket_udp(void)
+{
+  SOCKET sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+  // SUT
+  int result = closesocket(sock);
+
+  TS_ASSERT_EQUALS(result, 0);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_closesocket_no_socket(void)
+{
+  // SUT
+  SOCKET sock = 12345;
+  int result = closesocket(sock);
+
+  TS_ASSERT_EQUALS(result, -1);
+  TS_ASSERT_EQUALS(WSAGetLastError(), error::k_socketNotSocket);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_shutdown(void)
+{
+  SOCKET sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+  // SUT
+  int result = shutdown(sock, SD_RECEIVE);
+  TS_ASSERT_EQUALS(result, 0);
+
+  result = shutdown(sock, SD_SEND);
+  TS_ASSERT_EQUALS(result, 0);
+
+  result = shutdown(sock, SD_BOTH);
+  TS_ASSERT_EQUALS(result, 0);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_shutdown_no_socket(void)
+{
+  // SUT
+  SOCKET sock = 321;
+  int result  = shutdown(sock, SD_BOTH);
+
+  TS_ASSERT_EQUALS(result, -1);
+  TS_ASSERT_EQUALS(WSAGetLastError(), error::k_socketNotSocket);
 }
 
 #endif

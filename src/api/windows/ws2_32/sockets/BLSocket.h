@@ -27,6 +27,7 @@
 #include "BLSocketOptions.h"
 #include "BLSocketOperations.h"
 
+#include <algorithm>
 #include <queue>
 #include <sstream>
 
@@ -105,6 +106,83 @@ protected:
 };
 
 //  ****************************************************************************
+/// Contains utilities to help prepare and query socket state for unit-tests.
+///
+class SocketTest
+  : public SocketBase
+
+{
+public:
+  //  **************************************************************************
+  void setup_accept()
+  {
+    m_is_accepting = true;
+  }
+
+  //  **************************************************************************
+  void setup_connect()
+  {
+    m_is_connecting = true;
+  }
+
+  //  **************************************************************************
+  void setup_listen()
+  {
+    m_is_listening = true;
+  }
+
+  //  **************************************************************************
+  void setup_wait()
+  {
+    m_is_waiting = true;
+  }
+
+  //  **************************************************************************
+  void teardown()
+  {
+    m_is_accepting  = false;
+    m_is_connecting = false;
+    m_is_listening  = false;
+    m_is_waiting    = false;
+  }
+
+  //  **************************************************************************
+  bool is_accepting()
+  {
+    return m_is_accepting;
+  }
+
+  //  **************************************************************************
+  bool is_connecting()
+  {
+    return m_is_connecting;
+  }
+
+  //  **************************************************************************
+  bool is_listening()
+  {
+    return m_is_listening;
+  }
+
+  //  **************************************************************************
+  bool is_waiting()
+  {
+    return m_is_waiting;
+  }
+
+protected:
+  //  Data Members *************************************************************
+  bool    m_is_accepting;
+  bool    m_is_connecting;
+  bool    m_is_listening;
+  bool    m_is_waiting;
+
+  //  **************************************************************************
+  ~SocketTest () {};
+};
+
+
+//  ****************************************************************************
 /// This is a base implementation for an asynchronous socket that 
 /// provides functionality common to both stream and datagram based
 /// type sockets.
@@ -114,7 +192,7 @@ protected:
 /// 
 template<typename Protocol>
 class BasicSocket :
-    public SocketBase
+    public SocketTest
 {
 public:
   //  Typedef ******************************************************************
@@ -123,131 +201,196 @@ public:
   typedef           BasicSocket<Protocol>  ThisType;
 
   //  Construction *************************************************************
-                BasicSocket() :
-                    descriptor_(detail::k_invalidSocket),
-                    isAsyncIo_(false),
-                    isBlocking_(false),
-                    timeOut_(BL_DEF_SOCKET_TIMEOUT)
-                                    { }
-  explicit      BasicSocket( const ProtocolType &protocol) :
-                    descriptor_(detail::k_invalidSocket),
-                    isAsyncIo_(false),
-                    isBlocking_(false),
-                    timeOut_(BL_DEF_SOCKET_TIMEOUT)
-                                    {
-                                      Open(protocol);
-                                    }
+  //  **************************************************************************
+  BasicSocket() 
+    : descriptor_(detail::k_invalidSocket)
+    , isAsyncIo_(false)
+    , isBlocking_(false)
+    , timeOut_(BL_DEF_SOCKET_TIMEOUT)
+  { }
 
-  explicit      BasicSocket( const EndpointType &endpoint) :
-                    descriptor_(detail::k_invalidSocket),
-                    isAsyncIo_(false),
-                    isBlocking_(false),
-                    timeOut_(BL_DEF_SOCKET_TIMEOUT)
-                                    {
-                                      Open(endpoint.Protocol());
-                                      Bind(endpoint);
-                                    }
+  //  **************************************************************************
+  explicit      
+    BasicSocket( const ProtocolType &protocol) 
+    : descriptor_(detail::k_invalidSocket)
+    , isAsyncIo_(false)
+    , isBlocking_(false)
+    , timeOut_(BL_DEF_SOCKET_TIMEOUT)
+  {
+    Open(protocol);
+  }
+
+  //  **************************************************************************
+  explicit      
+    BasicSocket( const EndpointType &endpoint) 
+    : descriptor_(detail::k_invalidSocket)
+    , isAsyncIo_(false)
+    , isBlocking_(false)
+    , timeOut_(BL_DEF_SOCKET_TIMEOUT)
+  {
+    Open(endpoint.Protocol());
+    Bind(endpoint);
+  }
 
   //  Status *******************************************************************
-  bool          IsValid         ( ) const 
-                                    { return descriptor_ != detail::k_invalidSocket;}
+  //  **************************************************************************
+  bool IsValid( ) const 
+  { 
+    return descriptor_ != detail::k_invalidSocket;
+  }
 
+  //  **************************************************************************
   detail::socketType Native     ( ) const
-                                    { return descriptor_;}
+  { 
+    return descriptor_;
+  }
 
+  //  **************************************************************************
   template <typename GetableSocketOption>
-  bool          GetOption       ( GetableSocketOption& option) const
-                                    { ProtocolType pt;
-                                      int size = option.Size(pt);
-                                      return (::getsockopt( descriptor_, 
-                                                            option.Level(pt),
-                                                            option.Name(pt), 
-                                                            reinterpret_cast<char*>(option.Data(pt)),
-                                                            &size
-                                                            ) != detail::k_socketError);
-                                    }
+  bool GetOption( GetableSocketOption& option) const
+  { 
+    ProtocolType pt;
+    int size = option.Size(pt);
+    return (::getsockopt( descriptor_, 
+                          option.Level(pt),
+                          option.Name(pt), 
+                          reinterpret_cast<char*>(option.Data(pt)),
+                          &size
+                          ) != detail::k_socketError);
+  }
 
+  //  **************************************************************************
   template <typename SetableSocketOption>
-  bool          SetOption       ( SetableSocketOption& option)
-                                    { ProtocolType pt;
-                                      return (::setsockopt( descriptor_, 
-                                                            option.Level(pt),
-                                                            option.Name(pt), 
-                                                            reinterpret_cast<char*>(option.Data(pt)),
-                                                            option.Size(pt)
-                                                          ) != detail::k_socketError);
-                                    }
+  bool SetOption( SetableSocketOption& option)
+  {
+    ProtocolType pt;
+    return (::setsockopt( descriptor_, 
+                          option.Level(pt),
+                          option.Name(pt), 
+                          reinterpret_cast<char*>(option.Data(pt)),
+                          option.Size(pt)
+                        ) != detail::k_socketError);
+  }
 
+  //  **************************************************************************
   template <typename IOCtlCommand>
-  bool          IOControl       (IOCtlCommand &command)
-                                    { return (::ioctlsocket( descriptor_, 
-                                                             command.Name(), 
-                                                             command.Data()
-                                                           ) != detail::k_socketError);
-                                    }
+  bool IOControl(IOCtlCommand &command)
+  { 
+    return (::ioctlsocket( descriptor_, 
+                            command.Name(), 
+                            command.Data()
+                          ) != detail::k_socketError);
+  }
 
-  bool          IOControl       (SocketBase::NonBlockingIo &command)
-                                    { isAsyncIo_ = command.Value();
-                                      CancelBlockingCall();
-                                      return true;
-                                    }
+  //  **************************************************************************
+  bool IOControl(SocketBase::NonBlockingIo &command)
+  { 
+    isAsyncIo_ = command.Value();
+    CancelBlockingCall();
+    return true;
+  }
 
-  bool          IsBlocking      ( ) const
-                                    { return isBlocking_;}
+  //  **************************************************************************
+  bool IsBlocking( ) const
+  { 
+    return isBlocking_;
+  }
 
-  void          CancelBlockingCall( ) 
-                                    { if (IsBlocking())
-                                        SetBlockingState_(false);
-                                    }
+  //  **************************************************************************
+  void CancelBlockingCall( ) 
+  { 
+    if (IsBlocking())
+      SetBlockingState_(false);
+  }
 
   //  Methods ******************************************************************
-  void          Open            (const ProtocolType& protocol = ProtocolType())
-                                    { detail::socketType descriptor = 
-                                          ::socket( protocol.Family(), 
-                                                    protocol.Type(),
-                                                    protocol.Protocol());
-                                      if (descriptor != detail::k_invalidSocket)
-                                        descriptor_ = descriptor;
-                                    }
+  void Open(const ProtocolType& protocol = ProtocolType())
+  { }
 
-	bool          Accept          ( ThisType &connSocket)
-                                    { return Accept(connSocket, EndpointType());}
-	bool          Accept          ( ThisType &connSocket, EndpointType &peer)
-                                    { return Accept_(connSocket, peer);}
-	bool          Listen          ( int connectionBacklog = 5)
-                                    { return (::listen(descriptor_, connectionBacklog) != detail::k_socketError);}
-	bool          Bind            ( const EndpointType &local)
-                                    { return (::bind(descriptor_, local.Data(), local.Size()) != detail::k_socketError);}
-  void          Close           ( ) { Close_();}
-	bool          Connect         ( const EndpointType &peer)
-                                    { return Connect_(peer);}
-	int           Receive         ( void* pBuf, int len, MsgFlags flags = 0)
-                                    { return Receive_(pBuf, len, flags);}
-	int           Send            ( const void* pBuf, int len, MsgFlags flags = 0)
-                                    { return Send_(pBuf, len, flags);}
-  bool          Shutdown        ( ShutdownType mode)
-                                    { return (::shutdown(descriptor_, mode) != detail::k_socketError);}
+  //  **************************************************************************
+	bool Accept( ThisType &connSocket)  
+  { 
+    return Accept(connSocket, EndpointType());
+  }
+
+  //  **************************************************************************
+	bool Accept( ThisType &connSocket, EndpointType &peer)
+  { 
+    return Accept_(connSocket, peer);
+  }
+
+  //  **************************************************************************
+	bool Listen( int connectionBacklog = 5)
+  { 
+    return (::listen(descriptor_, connectionBacklog) != detail::k_socketError);
+  }
+
+  //  **************************************************************************
+	bool Bind( const EndpointType &local)
+  { 
+    return (::bind(descriptor_, local.Data(), local.Size()) != detail::k_socketError);
+  }
+
+  //  **************************************************************************
+  void Close( ) 
+  { 
+    Close_();
+  }
+
+  //  **************************************************************************
+	bool Connect( const EndpointType &peer)
+  { 
+    return Connect_(peer);
+  }
+
+  //  **************************************************************************
+	int Receive( void* pBuf, int len, MsgFlags flags = 0)
+  { 
+    return Receive_(pBuf, len, flags);
+  }
+
+  //  **************************************************************************
+	int Send( const void* pBuf, int len, MsgFlags flags = 0)
+  { 
+    return Send_(pBuf, len, flags);
+  }
+
+  //  **************************************************************************
+  bool Shutdown( ShutdownType mode)
+  { 
+    return (::shutdown(descriptor_, mode) != detail::k_socketError);
+  }
+
+  //  **************************************************************************
   EndpointType  LocalEndpoint   ( ) const
-                                    { EndpointType ep;
-                                      int size = ep.Size();
-                                      if (::getsockname(descriptor_, ep.Data(), &size) == detail::k_socketError)
-                                        ep.Clear();
+  { EndpointType ep;
+    int size = ep.Size();
+    if (::getsockname(descriptor_, ep.Data(), &size) == detail::k_socketError)
+      ep.Clear();
 
-                                      return ep;
-                                    }
+    return ep;
+  }
+
+  //  **************************************************************************
   EndpointType  RemoteEndpoint  ( ) const
-                                    { EndpointType ep;
-                                      int size = ep.Size();
-                                      if (::getpeername(descriptor_, ep.Data(), &size) == detail::k_socketError)
-                                        ep.Clear();
+  { EndpointType ep;
+    int size = ep.Size();
+    if (::getpeername(descriptor_, ep.Data(), &size) == detail::k_socketError)
+      ep.Clear();
 
-                                      return ep;
-                                    }
+    return ep;
+  }
 
   //  Static Functions *********************************************************
-  static int    Error           ( ) { return detail::GetLastSocketError();}
-  static void   Error           ( int error )
-                                    { detail::SetLastSocketError(error);}
+  static int    Error( ) 
+  { 
+    return detail::GetLastSocketError();
+  }
+
+  static void   Error ( int error )
+  { 
+    detail::SetLastSocketError(error);
+  }
 
 protected:
   //  Members ******************************************************************
@@ -301,16 +444,26 @@ public:
   std::stringstream   m_recv_buffer;
 
   //  Construction *************************************************************
-           StreamSocket   ( )                             :
-                                 BasicSocket()          { }
+  //  **************************************************************************
+  StreamSocket( )
+    : BasicSocket()          
+  { }
 
-  explicit StreamSocket   ( const ProtocolType &protocol) :
-                                 BasicSocket(protocol)  { }
+  //  **************************************************************************
+  explicit 
+    StreamSocket( const ProtocolType &protocol) 
+    : BasicSocket(protocol)  
+  { }
 
-  explicit StreamSocket   ( const EndpointType &endpoint) :
-                                 BasicSocket(endpoint)  { }
+  //  **************************************************************************
+  explicit 
+    StreamSocket( const EndpointType &endpoint) 
+    : BasicSocket(endpoint)  
+  { }
 
-          ~StreamSocket   ( )                           { }
+  //  **************************************************************************
+  ~StreamSocket( )
+  { }
 };
 
 //  ****************************************************************************
@@ -337,22 +490,40 @@ public:
   data_queue   m_recv_queue;
 
   //  Construction *************************************************************
-           DatagramSocket ( )                             :
-                                 BasicSocket()          { }
+  //  **************************************************************************
+  DatagramSocket ( )
+    : BasicSocket()
+  { }
 
-  explicit DatagramSocket ( const ProtocolType &protocol) :
-                                 BasicSocket(protocol)  { }
+  //  **************************************************************************
+  explicit 
+    DatagramSocket( const ProtocolType &protocol) 
+    : BasicSocket(protocol)  
+  { }
 
-  explicit DatagramSocket ( const EndpointType &endpoint) :
-                                 BasicSocket(endpoint)  { }
+  //  **************************************************************************
+  explicit 
+    DatagramSocket( const EndpointType &endpoint) 
+    : BasicSocket(endpoint)  
+  { }
 
-          ~DatagramSocket ( )                           { }
+  //  **************************************************************************
+  ~DatagramSocket( )
+  { }
 
   //  Methods ******************************************************************
-	int   ReceiveFrom     ( void* pBuf, int len, EndpointType &source, MsgFlags flags = 0)
-                            { return ReceiveFrom_(pBuf, len, source, flags);}
-	int   SendTo          ( const void* pBuf, int len, EndpointType &destination, MsgFlags flags = 0)
-                            { return SendTo_(pBuf, len, destination, flags);}
+  //  **************************************************************************
+	int ReceiveFrom( void* pBuf, int len, EndpointType &source, MsgFlags flags = 0)
+  { 
+    return ReceiveFrom_(pBuf, len, source, flags);
+  }
+
+  //  **************************************************************************
+	int SendTo( const void* pBuf, int len, EndpointType &destination, MsgFlags flags = 0)
+  { 
+    return SendTo_(pBuf, len, destination, flags);
+  }
+
 protected:
 
   //  Helper Abstractions ******************************************************
@@ -360,23 +531,49 @@ protected:
   int   SendTo_         ( const void* pBuf, int len, EndpointType &destination, MsgFlags flags);
 
   //  Socket Call Impl Methods *************************************************
-  int   CallReceiveFrom_( void* pBuf, int len, EndpointType &source, MsgFlags flags)
-                            { int size = source.Size();
-                              return ::recvfrom(descriptor_, 
-                                                reinterpret_cast<char*>(pBuf), 
-                                                len, 
-                                                flags,
-                                                source.Data(),
-                                                &size);
-                            }
-  int   CallSendTo_     ( const void* pBuf, int len, EndpointType &destination, MsgFlags flags)
-                            { return ::sendto(descriptor_, 
-                                              reinterpret_cast<const char*>(pBuf), 
-                                              len, 
-                                              flags,
-                                              destination.Data(),
-                                              destination.Size());
-                            }
+  //  **************************************************************************
+  int   CallReceiveFrom_( void* pBuf, size_t len, EndpointType &source, MsgFlags flags)
+  { 
+    // No explicit blocking for unit-tests.
+    if (m_recv_queue.empty())
+    {
+      return error::k_socketWouldBlock;
+    }
+
+    if (!pBuf)
+    {
+      return error::k_invalidArgument;
+    }
+
+    int size = source.Size();
+
+    // Get the datagram and return it to the caller.
+    datagram_type &msg = m_recv_queue.front();
+    m_recv_queue.pop();
+
+    // TODO: Possibly add alternate logic to read from the send queue for the source.
+    memcpy(pBuf, &msg[0], std::min(len, msg.size()));
+
+    return  len < msg.size()
+            ? error::k_socketMsgSize
+            : 0;
+    //return ::recvfrom(descriptor_, 
+    //                  reinterpret_cast<char*>(pBuf), 
+    //                  len, 
+    //                  flags,
+    //                  source.Data(),
+    //                  &size);
+  }
+
+  //  **************************************************************************
+  int CallSendTo_( const void* pBuf, int len, EndpointType &destination, MsgFlags flags)
+  { return ::sendto(descriptor_, 
+                    reinterpret_cast<const char*>(pBuf), 
+                    len, 
+                    flags,
+                    destination.Data(),
+                    destination.Size());
+  }
 };
 
 //  Definitions **************************************************************
@@ -739,7 +936,7 @@ inline int DatagramSocket<Protocol>::SendTo_(const void* pBuf,
   if (IsBlocking())
   { 
     Error(error::k_socketInProgress); 
-    return false;
+    return 0;
   }
 
 	int retVal;
@@ -747,7 +944,7 @@ inline int DatagramSocket<Protocol>::SendTo_(const void* pBuf,
 	{
     if (error::k_socketWouldBlock != Error())
       return detail::k_socketError;
-
+    
     if ( !WatchSelect_(FD_WRITE)
       && error::k_socketWouldBlock != Error())
       return detail::k_socketError;

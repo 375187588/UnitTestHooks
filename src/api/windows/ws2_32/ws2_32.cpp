@@ -25,12 +25,12 @@ namespace cxxhook
 LibraryFunction WS2_32_Hooks[WS2_32::k_api_count] = 
 {
   WS2_ENTRY(accept),
-  WS2_ENTRY(AcceptEx),
+  //WS2_ENTRY(AcceptEx), //Mswsock.lib
   WS2_ENTRY(bind),
   WS2_ENTRY(closesocket),
   WS2_ENTRY(connect),
-  WS2_ENTRY(ConnectEx),
-  WS2_ENTRY(DisconnectEx),
+  //WS2_ENTRY(ConnectEx),
+  //WS2_ENTRY(DisconnectEx),
   WS2_ENTRY(getaddrinfo),
   WS2_ENTRY(GetAddrInfoW),
   WS2_ENTRY(gethostbyname),
@@ -61,14 +61,15 @@ LibraryFunction WS2_32_Hooks[WS2_32::k_api_count] =
   WS2_ENTRY(WSAIoctl),
   WS2_ENTRY(WSARecv),
   WS2_ENTRY(WSARecvDisconnect),
-  WS2_ENTRY(WSARecvEx),
+  //WS2_ENTRY(WSARecvEx),
   WS2_ENTRY(WSARecvFrom),
   WS2_ENTRY(WSAResetEvent),
   WS2_ENTRY(WSASend),
   WS2_ENTRY(WSASendDisconnect),
   WS2_ENTRY(WSASendTo),
   WS2_ENTRY(WSASetEvent),
-  WS2_ENTRY(WSASocket),
+  WS2_ENTRY(WSASocketA),
+  WS2_ENTRY(WSASocketW),
   WS2_ENTRY(WSAStartup),
   WS2_ENTRY(WSAWaitForMultipleEvents)
 };
@@ -76,7 +77,7 @@ LibraryFunction WS2_32_Hooks[WS2_32::k_api_count] =
 
 //  ****************************************************************************
 WS2_32::WS2_32()
-  : k_library_name("ws2_32")
+  : k_library_name("ws2_32.dll")
   , m_version(MAKEWORD(2, 2))
   , m_ws_data(WSADATA())
 {
@@ -85,7 +86,7 @@ WS2_32::WS2_32()
 
 //  ****************************************************************************
 WS2_32::WS2_32(USHORT major, USHORT minor)
-  : k_library_name("ws2_32")
+  : k_library_name("ws2_32.dll")
   , m_version(MAKEWORD(major, minor))
   , m_ws_data(WSADATA())
 {
