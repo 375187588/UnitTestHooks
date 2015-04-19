@@ -19,6 +19,8 @@ Currently I am writing a class abstraction for Windows Sockets. This class will 
 
 If you have existing socket wrappers, you can continue to call into them (once you know they are correct with proper tests). Their calls into the hooked socket API will transfer buffered data between local memory buffers that are identified with the SOCKET's id.  
   
+Currently support and tests have been provided for socket, close, shutdown, recv and send.   
+  
 Once this is completed, I plan on expanding support for file, thread, and time-based API's.
 
 Example
