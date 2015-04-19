@@ -19,3 +19,4 @@ test/Test_ws2_32_hook/Debug/ws2_32_hook_fns.obj
 *.obj
 src/api/windows/ws2_32/sockets/BLIpResolve.h
 test/Test_ws2_32_hook/Debug/ws2_32_hook_fns.obj
+test/Test_ws2_32_hook/Debug/ws2_32_hook_fns.obj

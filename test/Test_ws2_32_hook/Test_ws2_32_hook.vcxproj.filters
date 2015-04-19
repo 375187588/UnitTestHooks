@@ -65,6 +65,9 @@
     <ClInclude Include="..\..\src\api\compiler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="gettysburg_address.h">
+      <Filter>Header Files\test</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Src\Generated\Test_ws2_32_hookRunner.cpp">

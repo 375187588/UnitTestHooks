@@ -166,6 +166,18 @@ UdpSocketSP WS2_32::get_udp_socket_state(SOCKET sock)
   return cxxhook::get_udp_socket(sock);
 }
 
+//  ****************************************************************************
+void WS2_32::add_recv_to_buffer(SOCKET sock, const char* pBuf, size_t len)
+{
+
+}
+
+//  ****************************************************************************
+void WS2_32::add_send_to_buffer(SOCKET sock, const char* pBuf, size_t len)
+{
+
+}
+
 
 } // namespace cxxhook
 

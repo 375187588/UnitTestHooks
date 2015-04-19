@@ -205,6 +205,7 @@ public:
   BasicSocket() 
     : descriptor_(detail::k_invalidSocket)
     , isAsyncIo_(false)
+    , isProhibitBlocking_(true)
     , isBlocking_(false)
     , timeOut_(BL_DEF_SOCKET_TIMEOUT)
   { }
@@ -214,6 +215,7 @@ public:
     BasicSocket( const ProtocolType &protocol) 
     : descriptor_(detail::k_invalidSocket)
     , isAsyncIo_(false)
+    , isProhibitBlocking_(true)
     , isBlocking_(false)
     , timeOut_(BL_DEF_SOCKET_TIMEOUT)
   {
@@ -225,6 +227,7 @@ public:
     BasicSocket( const EndpointType &endpoint) 
     : descriptor_(detail::k_invalidSocket)
     , isAsyncIo_(false)
+    , isProhibitBlocking_(true)
     , isBlocking_(false)
     , timeOut_(BL_DEF_SOCKET_TIMEOUT)
   {
@@ -288,6 +291,24 @@ public:
     isAsyncIo_ = command.Value();
     CancelBlockingCall();
     return true;
+  }
+
+  //  **************************************************************************
+  bool IsBlockingProhibited( ) const
+  { 
+    return isProhibitBlocking_;
+  }
+
+  //  **************************************************************************
+  void AllowBlocking()
+  { 
+    isProhibitBlocking_ = false;
+  }
+
+  //  **************************************************************************
+  void ProhibitBlocking()
+  { 
+    isProhibitBlocking_ = true;
   }
 
   //  **************************************************************************
@@ -396,6 +417,7 @@ protected:
   //  Members ******************************************************************
   detail::socketType  descriptor_;
   bool                isAsyncIo_;
+  bool                isProhibitBlocking_;
   bool                isBlocking_;
   unsigned long       timeOut_;
 
@@ -524,7 +546,8 @@ inline bool BasicSocket<Protocol>::Connect_(const EndpointType &peer)
   if (OnCallConnect_(peer))
     return true;
 
-  if (error::k_socketWouldBlock != Error())
+  if ( error::k_socketWouldBlock != Error()
+    || IsBlockingProhibited())
     return false;
 
   while (WatchSelect_(FD_CONNECT))
@@ -557,11 +580,13 @@ inline int BasicSocket<Protocol>::Receive_(void* pBuf, int len, SocketBase::MsgF
   int retVal = 0;
   while ((retVal = OnCallReceive_(pBuf, len, flags)) == detail::k_socketError)
   { 
-    if (error::k_socketWouldBlock != Error())
+    if ( error::k_socketWouldBlock != Error()
+      || IsBlockingProhibited())
       return detail::k_socketError;
 
     if ( !WatchSelect_(FD_READ)
-      && error::k_socketWouldBlock != Error())
+      && error::k_socketWouldBlock != Error()
+      || IsBlockingProhibited())
       return detail::k_socketError;
   }
 
@@ -611,8 +636,9 @@ inline int BasicSocket<Protocol>::Send_(const void* pBuf, int len, SocketBase::M
 template<typename Protocol>
 inline bool BasicSocket<Protocol>::SetBlockingState_( bool isBlocking)
 {
-  if (!isAsyncIo_)
-    isBlocking_ = isBlocking;
+// TODO: Possibly allow the tester to control if blocking is allowed or not. For now, explicitly prevent it.
+  //if (!isAsyncIo_)
+  //  isBlocking_ = isBlocking;
 
   return isBlocking_;
 }
@@ -627,11 +653,13 @@ inline int BasicSocket<Protocol>::SendPortion_(const void* pBuf, int len, Socket
   int retVal = 0;
   while ((retVal = OnCallSend_(pBuf, len, flags)) == detail::k_socketError)
   { 
-    if (error::k_socketWouldBlock != Error())
+    if ( error::k_socketWouldBlock != Error()
+      || IsBlockingProhibited())
       return detail::k_socketError;
 
     if ( !WatchSelect_(FD_WRITE)
-      && error::k_socketWouldBlock != Error())
+      && error::k_socketWouldBlock != Error()
+      || IsBlockingProhibited())
       return detail::k_socketError;
   }
 
@@ -644,8 +672,6 @@ inline int BasicSocket<Protocol>::SendPortion_(const void* pBuf, int len, Socket
 template<typename Protocol>
 inline bool BasicSocket<Protocol>::WatchSelect_(int selectEvent)
 {
-//  BLASSERT(!IsBlocking());
-
   SetBlockingState_(true);
   while (IsBlocking())
   {
@@ -769,6 +795,23 @@ public:
   ~StreamSocket( )
   { }
 
+  //  **************************************************************************
+  void add_recv_to_buffer(const char* pBuf, size_t len)
+  {
+    m_recv_buffer.rdbuf()->sputn(pBuf, len);
+  }
+
+  //  **************************************************************************
+  void add_to_send_buffer(const char* pBuf, size_t len)
+  {
+    m_send_buffer.rdbuf()->sputn(pBuf, len); 
+  }
+
+  //  **************************************************************************
+  size_t get_from_send_buffer(char* pBuf, size_t len)
+  {
+    return (size_t)m_send_buffer.rdbuf()->sgetn(pBuf, len); 
+  }
 
 protected:
   //  Data Members *************************************************************
@@ -791,7 +834,15 @@ int StreamSocket<Protocol>::OnCallReceive_(
   SocketBase::MsgFlags flags
 )
 { 
-  return (int)m_recv_buffer.rdbuf()->sgetn((char*)(pBuf), len);  
+  int result = (int)m_recv_buffer.rdbuf()->sgetn((char*)(pBuf), len);  
+
+  if (result < len)
+  {
+    Error(error::k_socketWouldBlock);
+    return detail::k_socketError;
+  }
+
+  return result;
 }
 
 //  ****************************************************************************
@@ -849,6 +900,39 @@ public:
   ~DatagramSocket( )
   { }
 
+  //  **************************************************************************
+  void add_recv_to_buffer(const char* pBuf, size_t len)
+  {
+    datagram_type buffer(len);
+    ::memcpy(&buffer[0], pBuf, len);
+    m_recv_queue.push(buffer);
+  }
+
+  //  **************************************************************************
+  void add_to_send_buffer(const char* pBuf, size_t len)
+  {
+    datagram_type buffer.resize(len);
+    ::memcpy(&buffer[0], pBuf, len);
+    m_send_queue.push(buffer);
+  }
+
+  //  **************************************************************************
+  size_t get_from_send_buffer(char* pBuf, size_t len)
+  {
+    if (m_send_queue.empty())
+    {
+      return 0;
+    }
+
+    datagram_type& buffer = m_send_queue.front();
+    size_t         available = buffer.size();
+    ::memcpy(pBuf, &buffer[0], std::min(available, len));
+    m_send_queue.pop();
+
+    return available;
+  }
+
+
   //  Methods ******************************************************************
   //  **************************************************************************
 	int ReceiveFrom( void* pBuf, int len, EndpointType &source, MsgFlags flags = 0)
@@ -898,12 +982,13 @@ int DatagramSocket<Protocol>::OnCallReceive_(
   }
 
   const datagram_type& msg = m_recv_queue.front();
-  int size = std::min<int>(msg.size(), len);
+  int msg_size = static_cast<int>(msg.size());
+  int size = std::min(msg_size, len);
   std::memcpy(pBuf, &msg[0], size);
 
   m_recv_queue.pop();
 
-  if (len < size)
+  if (len < msg_size)
   {
     Error(error::k_socketMsgSize);
     return detail::k_socketError;
@@ -924,7 +1009,7 @@ int DatagramSocket<Protocol>::OnCallSend_ (
   datagram_type msg(len);
   std::memcpy(&msg[0], pBuf, len);
 
-  m_recv_queue.push(msg);
+  m_send_queue.push(msg);
 
   return len;
 }
@@ -952,11 +1037,13 @@ inline int DatagramSocket<Protocol>::ReceiveFrom_(void* pBuf,
 	int retVal;
   while ((retVal = OnCallReceiveFrom_(pBuf, len, source, flags)) == detail::k_socketError)
 	{
-    if (error::k_socketWouldBlock != Error())
+    if ( error::k_socketWouldBlock != Error()
+      || IsBlockingProhibited())
       return detail::k_socketError;
 
     if ( !WatchSelect_(FD_READ)
-      && error::k_socketWouldBlock != Error())
+      && error::k_socketWouldBlock != Error()
+      || IsBlockingProhibited())
       return detail::k_socketError;
   }
 
@@ -986,11 +1073,13 @@ inline int DatagramSocket<Protocol>::SendTo_(const void* pBuf,
 	int retVal;
   while ((retVal = OnCallSendTo_(pBuf, len, destination, flags)) == detail::k_socketError)
 	{
-    if (error::k_socketWouldBlock != Error())
+    if ( error::k_socketWouldBlock != Error()
+      || IsBlockingProhibited())
       return detail::k_socketError;
     
     if ( !WatchSelect_(FD_WRITE)
-      && error::k_socketWouldBlock != Error())
+      && error::k_socketWouldBlock != Error()
+      || IsBlockingProhibited())
       return detail::k_socketError;
   }
 

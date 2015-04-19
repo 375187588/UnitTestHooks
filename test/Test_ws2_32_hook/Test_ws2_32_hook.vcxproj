@@ -118,6 +118,7 @@ Generate the test runner...
     <ClInclude Include="..\..\src\api\windows\ws2_32\socket_state.h" />
     <ClInclude Include="..\..\src\api\windows\ws2_32\ws2_32.h" />
     <ClInclude Include="..\..\src\api\windows\ws2_32\ws2_32_def.h" />
+    <ClInclude Include="gettysburg_address.h" />
     <ClInclude Include="Src\Test_ws2_32_hook.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

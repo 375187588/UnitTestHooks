@@ -29,10 +29,18 @@
 #define Test_WS2_32_hook_H_INCLUDED
 //  Includes *******************************************************************
 #include <cxxtest/TestSuite.h>
+#include "gettysburg_address.h"
 #include "../../../../src/api/windows/WS2_32/WS2_32.h"
+
+#include <vector>
+
+typedef std::vector<char>     buffer_t;
 
 using namespace cxxhook;
 using namespace cxxhook::ipc;
+
+const char* k_test_text = test::k_gettysburg_text;
+const int   k_test_size = (int)test::k_gettysburg_size;
 
 //  ****************************************************************************
 /// Test_WS2_32_hook Test Suite class.
@@ -40,7 +48,11 @@ using namespace cxxhook::ipc;
 class Test_WS2_32_hook : public CxxTest::TestSuite
 {
 public:
+  static 
+    const size_t k_1KB = 1024;
 
+
+  //  **************************************************************************
   Test_WS2_32_hook()
   {
     // TODO: Construct Test Suite Object
@@ -52,6 +64,8 @@ public:
   {
     sut = std::make_shared<SUT>();
     sut->hook();
+
+    WSASetLastError(0);
   }
  
   // tearDown will be called after each test case to clean up common resources.
@@ -82,6 +96,68 @@ public:
   void Test_shutdown(void);
   void Test_shutdown_no_socket(void);
 
+  void Test_recv_tcp(void);
+  void Test_recv_udp(void);
+  void Test_recv_udp_truncated(void);
+  void Test_recv_no_socket(void);
+  void Test_recv_blocking(void);
+
+  void Test_send_tcp(void);
+  void Test_send_udp(void);
+  void Test_send_no_socket(void);
+  void Test_send_blocking(void);
+
+
+
+    //accept,
+    //bind,
+    //connect,
+    //getaddrinfo,
+    //GetAddrInfoW,
+    //gethostbyname,
+
+    //gethostname,
+    //GetHostNameW,
+    //getpeername,
+    //getsockname,
+    //getsockopt,
+    //ioctlsocket,
+    //listen,
+    //recvfrom,
+    //select,
+
+    //sendto,
+    //setsockopt,
+
+    //WSAAccept,
+    //WSAAsyncSelect,
+    //WSACancelAsyncRequest,
+    //WSACleanup,
+    //WSACloseEvent,
+
+    //WSAConnect,
+    //WSACreateEvent,
+    //WSAEventSelect,
+    //WSAGetOverlappedResult,
+    //WSAIoctl,
+    //WSARecv,
+    //WSARecvDisconnect,
+    //WSARecvFrom,
+    //WSAResetEvent,
+
+    //WSASend,
+    //WSASendDisconnect,
+    //WSASendTo,
+    //WSASetEvent,
+    //WSASocketA,
+    //WSASocketW,
+    //WSAStartup,
+    //WSAWaitForMultipleEvents,
+
+    ////AcceptEx,
+    ////ConnectEx,
+    ////DisconnectEx,
+    ////WSARecvEx,
 
 };
 
@@ -186,5 +262,170 @@ void Test_WS2_32_hook::Test_shutdown_no_socket(void)
   TS_ASSERT_EQUALS(result, -1);
   TS_ASSERT_EQUALS(WSAGetLastError(), error::k_socketNotSocket);
 }
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_recv_tcp(void)
+{
+  char buffer[k_1KB];
+  int  len = k_1KB;
+
+  SOCKET      sock    = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  TcpSocketSP tcpSock = sut->get_tcp_socket_state(sock);
+
+  tcpSock->add_recv_to_buffer(k_test_text, k_test_size);
+
+  // SUT
+  int result = recv(sock, buffer, k_1KB, 0);
+
+  TS_ASSERT_EQUALS(result, k_1KB);
+  TS_ASSERT_SAME_DATA(buffer, k_test_text, result);
+
+  // Request the remainder.
+  ::memset(buffer, 0, k_1KB);
+  int  last = k_test_size - result;
+
+  // SUT 2
+  result = recv(sock, buffer, last, 0);
+
+  TS_ASSERT_EQUALS(result, last);
+  TS_ASSERT_SAME_DATA(buffer, k_test_text + k_1KB, last);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_recv_udp(void)
+{
+  char buffer[k_1KB];
+  int  len = k_1KB;
+
+  SOCKET      sock    = socket(AF_INET, SOCK_DGRAM, IPPROTO_TCP);
+  UdpSocketSP udpSock = sut->get_udp_socket_state(sock);
+
+  // Add two messages.
+  const int k_size_1 = k_test_size / 2;
+  const int k_size_2 = k_test_size - k_size_1;
+  udpSock->add_recv_to_buffer(k_test_text, k_size_1);
+  udpSock->add_recv_to_buffer(k_test_text + k_size_1, k_size_2);
+
+  // SUT
+  int result = recv(sock, buffer, k_1KB, 0);
+
+  TS_ASSERT_EQUALS(result, k_size_1);
+  TS_ASSERT_SAME_DATA(buffer, k_test_text, k_size_1);
+
+  // Request the remainder.
+  ::memset(buffer, 0, k_1KB);
+
+  // SUT 2
+  result = recv(sock, buffer, k_1KB, 0);
+
+  TS_ASSERT_EQUALS(result, k_size_2);
+  TS_ASSERT_SAME_DATA(buffer, k_test_text + k_size_1, k_size_2);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_recv_udp_truncated(void)
+{
+  char buffer[k_1KB];
+  int  len = k_1KB;
+
+  SOCKET      sock    = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  UdpSocketSP udpSock = sut->get_udp_socket_state(sock);
+
+  udpSock->add_recv_to_buffer(k_test_text, k_test_size);
+
+  // SUT
+  int result = recv(sock, buffer, k_1KB, 0);
+
+  TS_ASSERT_EQUALS(result, -1);
+  TS_ASSERT_EQUALS(WSAGetLastError(), error::k_socketMsgSize);
+  TS_ASSERT_SAME_DATA(buffer, k_test_text, k_1KB);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_recv_no_socket(void)
+{
+  // SUT
+  SOCKET sock = 321;
+  char   buffer[128];
+  int    len  = 128;
+  int result  = recv(sock, buffer, len, 0);
+
+  TS_ASSERT_EQUALS(result, -1);
+  TS_ASSERT_EQUALS(WSAGetLastError(), error::k_socketNotSocket);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_recv_blocking(void)
+{
+  char buffer[k_1KB];
+  int  len = k_1KB;
+
+  SOCKET      sock    = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  TcpSocketSP tcpSock = sut->get_tcp_socket_state(sock);
+
+  tcpSock->add_recv_to_buffer(k_test_text, k_test_size/2);
+
+  // SUT
+  int result = recv(sock, buffer, k_1KB, 0);
+
+  TS_ASSERT_EQUALS(result, -1);
+  TS_ASSERT_EQUALS(WSAGetLastError(), error::k_socketWouldBlock);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_send_tcp(void)
+{
+  SOCKET      sock    = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  // SUT
+  int result = send(sock, k_test_text, k_test_size, 0);
+
+  // Verify
+  TS_ASSERT_EQUALS(result, k_test_size);
+
+  TcpSocketSP tcpSock = sut->get_tcp_socket_state(sock);
+
+  buffer_t data(k_test_size);
+  tcpSock->get_from_send_buffer(&data[0], k_test_size);
+  TS_ASSERT_SAME_DATA(&data[0], k_test_text, result);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_send_udp(void)
+{
+  SOCKET      sock    = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  // SUT
+  int result = send(sock, k_test_text, k_test_size, 0);
+
+  // Verify
+  TS_ASSERT_EQUALS(result, k_test_size);
+
+  UdpSocketSP udpSock = sut->get_udp_socket_state(sock);
+
+  buffer_t data(k_test_size);
+  size_t   avail = udpSock->get_from_send_buffer(&data[0], k_test_size);
+  TS_ASSERT_EQUALS(avail, k_test_size);
+  TS_ASSERT_SAME_DATA(&data[0], k_test_text, result);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_send_no_socket(void)
+{
+  // SUT
+  SOCKET sock = 321;
+  char   buffer[128];
+  int    len  = 128;
+  int result  = send(sock, buffer, len, 0);
+
+  TS_ASSERT_EQUALS(result, -1);
+  TS_ASSERT_EQUALS(WSAGetLastError(), error::k_socketNotSocket);
+}
+
+//  ****************************************************************************
+void Test_WS2_32_hook::Test_send_blocking(void)
+{
+
+}
+
+
 
 #endif
