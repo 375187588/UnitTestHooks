@@ -11,6 +11,7 @@
 //  ****************************************************************************
 #include "WS2_32.h"
 #include "../../../ApiHook.h"
+#include <vector>
 
 // This is a library unique to the Win32 API
 #if defined(WIN32)
@@ -167,15 +168,70 @@ UdpSocketSP WS2_32::get_udp_socket_state(SOCKET sock)
 }
 
 //  ****************************************************************************
-void WS2_32::add_recv_to_buffer(SOCKET sock, const char* pBuf, size_t len)
+void WS2_32::add_to_recv_buffer(SOCKET sock, const char* pBuf, size_t len)
 {
-
+  if (sock%2 == 0)
+  {
+    UdpSocketSP udpSock = get_udp_socket_state(sock);
+    if (udpSock)
+    {
+      udpSock->add_to_recv_buffer(pBuf, len);
+    }
+  }
+  else
+  {
+    TcpSocketSP tcpSock = get_tcp_socket_state(sock);
+    if (tcpSock)
+    {
+      tcpSock->add_to_recv_buffer(pBuf, len);
+    }
+  }
 }
 
 //  ****************************************************************************
-void WS2_32::add_send_to_buffer(SOCKET sock, const char* pBuf, size_t len)
+void WS2_32::add_to_send_buffer(SOCKET sock, const char* pBuf, size_t len)
 {
+  if (sock%2 == 0)
+  {
+    UdpSocketSP udpSock = get_udp_socket_state(sock);
+    if (udpSock)
+    {
+      udpSock->add_to_send_buffer(pBuf, len);
+    }
+  }
+  else
+  {
+    TcpSocketSP tcpSock = get_tcp_socket_state(sock);
+    if (tcpSock)
+    {
+      tcpSock->add_to_send_buffer(pBuf, len);
+    }
+  }
+}
 
+//  ****************************************************************************
+size_t WS2_32::get_from_send_buffer(SOCKET sock, char* pBuf, size_t len)
+{
+  if (sock%2 == 0)
+  {
+    UdpSocketSP udpSock = get_udp_socket_state(sock);
+    if (!udpSock)
+    {
+      return 0;
+    }
+
+    return udpSock->get_from_send_buffer(pBuf, len);
+  }
+  else
+  {
+    TcpSocketSP tcpSock = get_tcp_socket_state(sock);
+    if (!tcpSock)
+    {
+      return 0;
+    }
+
+    return tcpSock->get_from_send_buffer(pBuf, len);
+  }
 }
 
 

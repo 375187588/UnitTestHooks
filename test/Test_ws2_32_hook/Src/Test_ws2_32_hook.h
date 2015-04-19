@@ -107,11 +107,20 @@ public:
   void Test_send_no_socket(void);
   void Test_send_blocking(void);
 
+    //recvfrom,
+    //sendto,
 
 
     //accept,
     //bind,
     //connect,
+    //listen,
+    //select,
+
+    //getsockopt,
+    //setsockopt,
+    //ioctlsocket,
+
     //getaddrinfo,
     //GetAddrInfoW,
     //gethostbyname,
@@ -120,39 +129,35 @@ public:
     //GetHostNameW,
     //getpeername,
     //getsockname,
-    //getsockopt,
-    //ioctlsocket,
-    //listen,
-    //recvfrom,
-    //select,
 
-    //sendto,
-    //setsockopt,
-
+// Adding support for these functions will require incorporating the asynchronous mechanisms of the socket hooks.
     //WSAAccept,
     //WSAAsyncSelect,
     //WSACancelAsyncRequest,
-    //WSACleanup,
-    //WSACloseEvent,
 
     //WSAConnect,
-    //WSACreateEvent,
-    //WSAEventSelect,
     //WSAGetOverlappedResult,
     //WSAIoctl,
     //WSARecv,
     //WSARecvDisconnect,
     //WSARecvFrom,
-    //WSAResetEvent,
 
     //WSASend,
     //WSASendDisconnect,
     //WSASendTo,
-    //WSASetEvent,
     //WSASocketA,
     //WSASocketW,
-    //WSAStartup,
     //WSAWaitForMultipleEvents,
+
+    //WSACleanup,
+    //WSAStartup,
+
+    //WSACreateEvent,
+    //WSACloseEvent,
+    //WSAEventSelect,
+    //WSAResetEvent,
+    //WSASetEvent,
+
 
     ////AcceptEx,
     ////ConnectEx,
@@ -270,9 +275,7 @@ void Test_WS2_32_hook::Test_recv_tcp(void)
   int  len = k_1KB;
 
   SOCKET      sock    = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  TcpSocketSP tcpSock = sut->get_tcp_socket_state(sock);
-
-  tcpSock->add_recv_to_buffer(k_test_text, k_test_size);
+  sut->add_to_recv_buffer(sock, k_test_text, k_test_size);
 
   // SUT
   int result = recv(sock, buffer, k_1KB, 0);
@@ -298,13 +301,13 @@ void Test_WS2_32_hook::Test_recv_udp(void)
   int  len = k_1KB;
 
   SOCKET      sock    = socket(AF_INET, SOCK_DGRAM, IPPROTO_TCP);
-  UdpSocketSP udpSock = sut->get_udp_socket_state(sock);
 
   // Add two messages.
   const int k_size_1 = k_test_size / 2;
   const int k_size_2 = k_test_size - k_size_1;
-  udpSock->add_recv_to_buffer(k_test_text, k_size_1);
-  udpSock->add_recv_to_buffer(k_test_text + k_size_1, k_size_2);
+
+  sut->add_to_recv_buffer(sock, k_test_text, k_size_1);
+  sut->add_to_recv_buffer(sock, k_test_text + k_size_1, k_size_2);
 
   // SUT
   int result = recv(sock, buffer, k_1KB, 0);
@@ -329,9 +332,7 @@ void Test_WS2_32_hook::Test_recv_udp_truncated(void)
   int  len = k_1KB;
 
   SOCKET      sock    = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  UdpSocketSP udpSock = sut->get_udp_socket_state(sock);
-
-  udpSock->add_recv_to_buffer(k_test_text, k_test_size);
+  sut->add_to_recv_buffer(sock, k_test_text, k_test_size);
 
   // SUT
   int result = recv(sock, buffer, k_1KB, 0);
@@ -361,9 +362,7 @@ void Test_WS2_32_hook::Test_recv_blocking(void)
   int  len = k_1KB;
 
   SOCKET      sock    = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  TcpSocketSP tcpSock = sut->get_tcp_socket_state(sock);
-
-  tcpSock->add_recv_to_buffer(k_test_text, k_test_size/2);
+  sut->add_to_recv_buffer(sock, k_test_text, k_test_size/2);
 
   // SUT
   int result = recv(sock, buffer, k_1KB, 0);
@@ -382,10 +381,9 @@ void Test_WS2_32_hook::Test_send_tcp(void)
   // Verify
   TS_ASSERT_EQUALS(result, k_test_size);
 
-  TcpSocketSP tcpSock = sut->get_tcp_socket_state(sock);
-
   buffer_t data(k_test_size);
-  tcpSock->get_from_send_buffer(&data[0], k_test_size);
+  sut->get_from_send_buffer(sock, &data[0], k_test_size);
+
   TS_ASSERT_SAME_DATA(&data[0], k_test_text, result);
 }
 
@@ -399,10 +397,9 @@ void Test_WS2_32_hook::Test_send_udp(void)
   // Verify
   TS_ASSERT_EQUALS(result, k_test_size);
 
-  UdpSocketSP udpSock = sut->get_udp_socket_state(sock);
-
   buffer_t data(k_test_size);
-  size_t   avail = udpSock->get_from_send_buffer(&data[0], k_test_size);
+  size_t   avail = sut->get_from_send_buffer(sock, &data[0], k_test_size);
+
   TS_ASSERT_EQUALS(avail, k_test_size);
   TS_ASSERT_SAME_DATA(&data[0], k_test_text, result);
 }

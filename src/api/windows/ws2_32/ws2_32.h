@@ -77,8 +77,9 @@ public:
   TcpSocketSP get_tcp_socket_state(SOCKET sock);
   UdpSocketSP get_udp_socket_state(SOCKET sock);
 
-  void add_recv_to_buffer(SOCKET sock, const char* pBuf, size_t len);
-  void add_send_to_buffer(SOCKET sock, const char* pBuf, size_t len);
+  void add_to_recv_buffer(SOCKET sock, const char* pBuf, size_t len);
+  void add_to_send_buffer(SOCKET sock, const char* pBuf, size_t len);
+  size_t get_from_send_buffer(SOCKET sock, char* pBuf, size_t len);
 
   //  Enumerated API List ******************************************************
   enum API_enum

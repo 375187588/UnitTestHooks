@@ -796,7 +796,7 @@ public:
   { }
 
   //  **************************************************************************
-  void add_recv_to_buffer(const char* pBuf, size_t len)
+  void add_to_recv_buffer(const char* pBuf, size_t len)
   {
     m_recv_buffer.rdbuf()->sputn(pBuf, len);
   }
@@ -901,7 +901,7 @@ public:
   { }
 
   //  **************************************************************************
-  void add_recv_to_buffer(const char* pBuf, size_t len)
+  void add_to_recv_buffer(const char* pBuf, size_t len)
   {
     datagram_type buffer(len);
     ::memcpy(&buffer[0], pBuf, len);
@@ -911,7 +911,7 @@ public:
   //  **************************************************************************
   void add_to_send_buffer(const char* pBuf, size_t len)
   {
-    datagram_type buffer.resize(len);
+    datagram_type buffer(len);
     ::memcpy(&buffer[0], pBuf, len);
     m_send_queue.push(buffer);
   }
