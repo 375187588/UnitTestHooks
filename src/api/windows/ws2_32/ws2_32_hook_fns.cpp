@@ -129,6 +129,8 @@ SOCKET add_socket_state(TcpSocketSP sp_socket)
 {
   SOCKET id = g_next_tcp_id += 2;
   g_tcp_sockets[id] = sp_socket;
+  sp_socket->Native(id);
+
   return id;
 }
 
@@ -474,13 +476,60 @@ int WSAAPI Hook_ioctlsocket(
 //  Socket Actions *************************************************************
 //  ****************************************************************************
 template <typename T>
-int acceptT(
+SOCKET acceptT(
   std::shared_ptr<T>  sp_socket,
   sockaddr *addr,
   int *     addrlen
 )
 {
-  return 0;
+  // The specified socket must be in a listening state
+  // with a specified peer socket.
+  if (!sp_socket)
+  {
+    return set_socket_error(error::k_socketNotSocket);
+  }
+
+  if (!addr)
+  {
+    return set_socket_error(error::k_invalidArgument);
+  }
+
+  if ( !addrlen 
+    || *addrlen != sizeof(unsigned long))
+  {
+    return set_socket_error(error::k_invalidArgument);
+  }
+
+  if (!sp_socket->is_listening())
+  {
+    return set_socket_error(error::k_socketConnRefused);
+  }
+
+  // Verify that these sockets are using compatible protocols.
+  SOCKET peer = sp_socket->get_peer_socket();
+  if (is_udp(peer) != is_udp(sp_socket->Native()))
+  {
+    return set_socket_error(error::k_socketConnRefused);
+  }
+
+  // Create a new socket to return to the caller.
+  std::shared_ptr<T>  sp_accepted = std::make_shared<T>();
+
+  // TODO: Initialize this peer with the information stored in the socket database.
+  std::shared_ptr<T>  sp_peer;
+  T::EndpointType     peer_endpoint = sp_peer->LocalEndpoint();
+  
+  if (!sp_socket->Accept(sp_accepted, peer_endpoint))
+  {
+    return get_socket_error();
+  }
+  
+  if (*addrlen >= peer.Size())
+  {
+    ::memcpy(addr, peer_endpoint.Data(), peer.Size())
+  }
+
+  return add_socket_state(sp_accepted);
 }
 
 //  ****************************************************************************

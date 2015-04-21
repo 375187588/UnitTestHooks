@@ -113,11 +113,12 @@ class SocketTest
 
 {
 public:
-  //  **************************************************************************
-  void setup_accept()
-  {
-    m_is_accepting = true;
-  }
+  SocketTest()
+    : m_is_connecting(false)
+    , m_is_listening(false)
+    , m_is_waiting(false)
+    , m_peer_socket(detail::k_invalidSocket)
+  { }
 
   //  **************************************************************************
   void setup_connect()
@@ -140,16 +141,9 @@ public:
   //  **************************************************************************
   void teardown()
   {
-    m_is_accepting  = false;
     m_is_connecting = false;
     m_is_listening  = false;
     m_is_waiting    = false;
-  }
-
-  //  **************************************************************************
-  bool is_accepting()
-  {
-    return m_is_accepting;
   }
 
   //  **************************************************************************
@@ -170,13 +164,50 @@ public:
     return m_is_waiting;
   }
 
-protected:
-  //  Data Members *************************************************************
-  bool    m_is_accepting;
-  bool    m_is_connecting;
-  bool    m_is_listening;
-  bool    m_is_waiting;
+  //  **************************************************************************
+  void push_connecting(SOCKET s)
+  {
+    m_connect_queue.push(s);
+  }
 
+  //  **************************************************************************
+  SOCKET pop_connecting()
+  {
+    if (m_connect_queue.empty())
+    {
+      return detail::k_invalidSocket;
+    }
+
+    SOCKET s = m_connect_queue.front();
+    m_connect_queue.pop();
+    return s;
+  }
+
+  //  **************************************************************************
+  SOCKET get_peer_socket()
+  {
+    return m_peer_socket;
+  }
+
+  //  **************************************************************************
+  void clear_peer_socket()
+  {
+    m_peer_socket = detail::k_invalidSocket;
+  }
+
+protected:
+  //  Typedefs *****************************************************************
+  typedef std::queue<SOCKET>        SocketQueue;
+
+
+  //  Data Members *************************************************************
+  bool            m_is_accepting;
+  bool            m_is_connecting;
+  bool            m_is_listening;
+  bool            m_is_waiting;
+
+  SocketQueue     m_connect_queue;
+  SOCKET          m_peer_socket;
   //  **************************************************************************
   ~SocketTest () {};
 };
@@ -203,7 +234,8 @@ public:
   //  Construction *************************************************************
   //  **************************************************************************
   BasicSocket() 
-    : descriptor_(detail::k_invalidSocket)
+    : SocketTest()
+    , descriptor_(detail::k_invalidSocket)
     , isAsyncIo_(false)
     , isProhibitBlocking_(true)
     , isBlocking_(false)
@@ -213,7 +245,8 @@ public:
   //  **************************************************************************
   explicit      
     BasicSocket( const ProtocolType &protocol) 
-    : descriptor_(detail::k_invalidSocket)
+    : SocketTest()
+    , descriptor_(detail::k_invalidSocket)
     , isAsyncIo_(false)
     , isProhibitBlocking_(true)
     , isBlocking_(false)
@@ -225,7 +258,8 @@ public:
   //  **************************************************************************
   explicit      
     BasicSocket( const EndpointType &endpoint) 
-    : descriptor_(detail::k_invalidSocket)
+    : SocketTest()
+    , descriptor_(detail::k_invalidSocket)
     , isAsyncIo_(false)
     , isProhibitBlocking_(true)
     , isBlocking_(false)
@@ -246,6 +280,12 @@ public:
   detail::socketType Native     ( ) const
   { 
     return descriptor_;
+  }
+
+  //  **************************************************************************
+  void Native     (detail::socketType descriptor)
+  { 
+    descriptor_ = descriptor;
   }
 
   //  **************************************************************************
@@ -343,13 +383,13 @@ public:
   //  **************************************************************************
 	bool Listen( int connectionBacklog = 5)
   { 
-    return (::listen(descriptor_, connectionBacklog) != detail::k_socketError);
+    return OnCallListen_(connectionBacklog);
   }
 
   //  **************************************************************************
 	bool Bind( const EndpointType &local)
   { 
-    return (::bind(descriptor_, local.Data(), local.Size()) != detail::k_socketError);
+    return OnCallBind_(local);
   }
 
   //  **************************************************************************
@@ -379,27 +419,19 @@ public:
   //  **************************************************************************
   bool Shutdown( ShutdownType mode)
   { 
-    return (::shutdown(descriptor_, mode) != detail::k_socketError);
+    return OnCallShutdown_(mode);
   }
 
   //  **************************************************************************
   EndpointType  LocalEndpoint   ( ) const
-  { EndpointType ep;
-    int size = ep.Size();
-    if (::getsockname(descriptor_, ep.Data(), &size) == detail::k_socketError)
-      ep.Clear();
-
-    return ep;
+  { 
+    return m_local;
   }
 
   //  **************************************************************************
   EndpointType  RemoteEndpoint  ( ) const
-  { EndpointType ep;
-    int size = ep.Size();
-    if (::getpeername(descriptor_, ep.Data(), &size) == detail::k_socketError)
-      ep.Clear();
-
-    return ep;
+  { 
+    return m_peer;
   }
 
   //  Static Functions *********************************************************
@@ -421,6 +453,9 @@ protected:
   bool                isBlocking_;
   unsigned long       timeOut_;
 
+  EndpointType        m_local;
+  EndpointType        m_peer;
+
   //  Helper Abstractions ******************************************************
   bool          Assign_         (detail::socketType socket);
   bool          Accept_         ( BasicSocket &connSocket, EndpointType &peer);
@@ -434,16 +469,25 @@ protected:
   bool OnCallAccept_ ( ThisType &connSocket, EndpointType &peer);
   
   virtual 
+  bool OnCallBind_   ( const EndpointType &local);
+  
+  virtual 
   void OnCallClose_  ( );
 
   virtual 
   bool OnCallConnect_( const EndpointType &peer);
 
   virtual 
+  bool OnCallListen_ ( int connectionBacklog);
+  
+  virtual 
   int  OnCallReceive_( void* pBuf, int len, MsgFlags flags) = 0;
 
   virtual 
   int  OnCallSend_   ( const void* pBuf, int len, MsgFlags flags) = 0;
+
+  virtual 
+  bool OnCallShutdown_(ShutdownType mode);
 
   //  Blocking Call Helpers ****************************************************
   bool          SetBlockingState_( bool isBlocking);
@@ -490,7 +534,9 @@ template<typename Protocol>
 inline bool BasicSocket<Protocol>::Accept_(BasicSocket &connSocket, EndpointType &peer) 
 { 
   if (isAsyncIo_)
+  {
     return OnCallAccept_(connSocket, peer);
+  }
   else // Blocking implementation
   { 
     if (IsBlocking())
@@ -501,12 +547,13 @@ inline bool BasicSocket<Protocol>::Accept_(BasicSocket &connSocket, EndpointType
 
     while (!OnCallAccept_(connSocket, peer))
     { 
-      if (error::k_socketWouldBlock == Error())
-      { 
-        if (!WatchSelect_(FD_ACCEPT))
-          return false;
+      if ( error::k_socketWouldBlock != Error()
+        || IsBlockingProhibited())
+      {
+        return false;
       }
-      else
+
+      if (!WatchSelect_(FD_ACCEPT))
         return false;
     }
 
@@ -636,9 +683,11 @@ inline int BasicSocket<Protocol>::Send_(const void* pBuf, int len, SocketBase::M
 template<typename Protocol>
 inline bool BasicSocket<Protocol>::SetBlockingState_( bool isBlocking)
 {
-// TODO: Possibly allow the tester to control if blocking is allowed or not. For now, explicitly prevent it.
-  //if (!isAsyncIo_)
-  //  isBlocking_ = isBlocking;
+  if ( !isAsyncIo_
+    && !IsBlockingProhibited())
+  {
+    isBlocking_ = isBlocking;
+  }
 
   return isBlocking_;
 }
@@ -722,6 +771,33 @@ DWORD err = Error();
   return (result > 0);
 }
 
+//  **************************************************************************
+template<typename Protocol>
+inline bool BasicSocket<Protocol>::OnCallListen_( int connectionBacklog)
+{ 
+  m_peer_socket  = pop_connecting();
+
+  m_is_listening = m_peer_socket != detail::k_invalidSocket;
+  return m_is_listening;
+}
+
+//  **************************************************************************
+template<typename Protocol>
+inline bool BasicSocket<Protocol>::OnCallBind_( const EndpointType &local)
+{ 
+  m_local = local;
+  return true;
+}
+
+//  ****************************************************************************
+template<typename Protocol>
+inline bool BasicSocket<Protocol>::OnCallShutdown_(ShutdownType mode)
+{
+  // TODO: Fill in the implementation
+
+  return true;
+}
+
 //  ****************************************************************************
 template<typename Protocol>
 inline bool BasicSocket<Protocol>::OnCallConnect_( const EndpointType &peer)
@@ -735,13 +811,14 @@ inline bool BasicSocket<Protocol>::OnCallAccept_( ThisType &connSocket,
                                                   EndpointType &peer) 
 { 
   connSocket.Close();
-  int size = peer.Size();
-  detail::socketType connDescriptor = 
-      ::accept(descriptor_, peer.Data(), &size);
-  if (detail::k_invalidSocket == connDescriptor)
-    return false; 
 
-  return connSocket.Assign_(connDescriptor);
+  // TODO: If the local Endpoint is empty, assign a local binding address.
+  connSocket.m_local = LocalEndpoint();
+  connSocket.m_peer_socket = get_peer_socket();
+    
+  clear_peer_socket();
+
+  return true;
 }
 
 //  ****************************************************************************
@@ -750,7 +827,6 @@ inline void BasicSocket<Protocol>::OnCallClose_( )
 { 
   if (IsValid())
   { 
-    ::closesocket(descriptor_);
     descriptor_ = detail::k_invalidSocket;
   }
 }
